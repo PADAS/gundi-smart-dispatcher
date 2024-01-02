@@ -33,6 +33,17 @@ app.add_middleware(
 logger = logging.getLogger(__name__)
 
 
+@app.get(
+    "/",
+    tags=["health-check"],
+    summary="Check that the service is healthy",
+)
+def health_check(
+    request: Request,
+):
+    return {"status": "healthy"}
+
+
 @app.post(
     "/",
     summary="Process a message from Pub/Sub",
