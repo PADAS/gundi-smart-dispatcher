@@ -1,14 +1,11 @@
-import base64
-import json
 import logging
 import os
-from fastapi import FastAPI, Request, status, Depends, BackgroundTasks
+from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-import app.settings as settings
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.services.process_messages import process_request
 
 # For running behind a proxy, we'll want to configure the root path for OpenAPI browser.
 root_path = os.environ.get("ROOT_PATH", "")
@@ -48,19 +45,13 @@ def health_check(
     "/",
     summary="Process a message from Pub/Sub",
 )
-async def process_message(
+async def process_cloud_event(
     request: Request,
 ):
     body = await request.body()
-    print(f"Message Received. RAW body: {body}")
-    json_data = await request.json()
-    print(f"JSON: {json_data}")
-    payload = base64.b64decode(json_data["message"]["data"]).decode("utf-8").strip()
-    print(f"Payload: {payload}")
-    json_payload = json.loads(payload)
-    print(f"JSON Payload: {json_payload}")
-    # ToDo: run dispatcher
-    return {}
+    headers = request.headers
+    print(f"Message Received.\n RAW body: {body}\n headers: {headers}")
+    return await process_request(request=request)
 
 
 @app.exception_handler(RequestValidationError)

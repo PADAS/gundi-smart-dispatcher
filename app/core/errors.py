@@ -8,4 +8,11 @@ class ConfigurationValidationError(Exception):
     pass
 
 
+class ReferenceDataError(Exception):
+    pass
+
+
+class DispatcherException(Exception):
+    pass
+
 
