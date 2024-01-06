@@ -1,14 +1,21 @@
 import uuid
-from gundi_client_v2 import GundiClient
 import logging
+import aioredis
+from app import settings
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 from gundi_core import schemas
+from gundi_client_v2 import GundiClient
 from smartconnect import AsyncSmartClient
 from smartconnect.models import SMARTRequest, SMARTCompositeRequest
-from app.core.utils import find_config_for_action
+from app.core.utils import find_config_for_action, RateLimiterSemaphore
 
 _portal = GundiClient()
+_redis_client = aioredis.from_url(
+    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
+    encoding="utf-8",
+    decode_responses=True
+)
 logger = logging.getLogger(__name__)
 
 
@@ -99,10 +106,11 @@ class SmartConnectEventDispatcher(SmartConnectDispatcherV2):
 
             payload = waypoint_request.json(exclude_none=True)
             logger.debug("SmartConnectEventDispatcher > Waypoint payload.", extra={'payload': payload})
-            return await self.smart_client.post_smart_request(
-                json=payload,
-                ca_uuid=composite_msg.ca_uuid
-            )
+            async with RateLimiterSemaphore(redis_client=_redis_client, url=self.integration.base_url):
+                return await self.smart_client.post_smart_request(
+                    json=payload,
+                    ca_uuid=composite_msg.ca_uuid
+                )
 
 
 dispatcher_cls_by_type = {

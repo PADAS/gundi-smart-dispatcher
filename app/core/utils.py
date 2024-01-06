@@ -6,7 +6,7 @@ import aiohttp
 import logging
 import walrus
 import backoff
-from uuid import UUID
+from app import settings
 from enum import Enum
 from gundi_core import schemas as gundi_schemas
 from gundi_core.schemas import v2 as gundi_schemas_v2
@@ -14,7 +14,7 @@ from gundi_core.events import SystemEventBaseModel
 from gundi_client_v2 import GundiClient
 from redis import exceptions as redis_exceptions
 from gcloud.aio import pubsub
-from . import settings
+from . import settings, errors
 from .errors import ReferenceDataError
 
 
@@ -298,3 +298,61 @@ async def publish_event(event: SystemEventBaseModel, topic_name: str):
             logger.debug(f"System event {event} published successfully.")
             logger.debug(f"GCP PubSub response: {response}")
 
+
+class RateLimiterSemaphore:
+
+    def __init__(self, redis_client, url, **kwargs):
+        self.url = url
+        self.max_requests = kwargs.get("max_requests", settings.MAX_REQUESTS)
+        self.max_requests_time_window_sec = kwargs.get("max_requests_time_window_sec", settings.MAX_REQUESTS_TIME_WINDOW_SEC)
+        # Redis client bound to pool of connections (auto-reconnecting).
+        self.redis_client = redis_client
+        print("RateLimiter")
+
+    # Support using this client as an async context manager.
+    async def __aenter__(self):
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.release()
+
+    async def acquire(self, auto_release=True):
+        """
+        Try to acquire the counter semaphore:
+            - Increase the number of requests made in the last time window
+            - If the number of requests is greater than the limit, raise an exception
+        """
+        async with self.redis_client.pipeline(transaction=True) as pipe:
+            operations = pipe.incr(self.url)
+            if auto_release:
+                operations = operations.expire(self.url, self.max_requests_time_window_sec)
+            res = await operations.execute()
+
+        if res[0] > self.max_requests:
+            raise errors.TooManyRequests(
+                f"Too many requests in the last {self.max_requests_time_window_sec} seconds: {res[0]}"
+            )
+
+    async def release(self):
+        """
+        Release the semaphore:
+            - Decrease the number of requests made in the last time window
+        """
+        await self.redis_client.decr(self.url)
+
+    async def get_requests_count(self) -> int:
+        """
+        Get the number of requests made in the last time window
+        """
+        count = await self.redis_client.get(self.url)
+        if count:
+            return int(count)
+        else:
+            return 0
+
+    def __str__(self):
+        return f"RateLimiterSemaphore<{self.url}>: {self.max_requests}/{self.max_requests_time_window_sec} sec"
+
+    def __repr__(self):
+        return self.__str__()

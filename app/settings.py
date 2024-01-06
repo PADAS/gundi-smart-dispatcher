@@ -28,22 +28,11 @@ logging.config.dictConfig(DEFAULT_LOGGING)
 
 DEFAULT_REQUESTS_TIMEOUT = (10, 20)  # Connect, Read
 
-CDIP_API_ENDPOINT = env.str("CDIP_API_ENDPOINT", None)
-CDIP_ADMIN_ENDPOINT = env.str("CDIP_ADMIN_ENDPOINT", None)
-PORTAL_API_ENDPOINT = f"{CDIP_ADMIN_ENDPOINT}/api/v1.0"
-PORTAL_OUTBOUND_INTEGRATIONS_ENDPOINT = (
-    f"{PORTAL_API_ENDPOINT}/integrations/outbound/configurations"
-)
-PORTAL_INBOUND_INTEGRATIONS_ENDPOINT = (
-    f"{PORTAL_API_ENDPOINT}/integrations/inbound/configurations"
-)
-
 # Used in OTel traces/spans to set the 'environment' attribute, used on metrics calculation
 TRACE_ENVIRONMENT = env.str("TRACE_ENVIRONMENT", "dev")
 
 # GCP related settings
 GCP_PROJECT_ID = env.str("GCP_PROJECT_ID", "cdip-78ca")
-
 
 KEYCLOAK_ALGORITHMS = env.list("KEYCLOAK_ALGORITHMS", ["RS256", "HS256"])
 KEYCLOAK_AUDIENCE = env.str("KEYCLOAK_AUDIENCE", None)
@@ -54,4 +43,6 @@ KEYCLOAK_ISSUER = f"{KEYCLOAK_AUTH_SERVICE}/realms/{KEYCLOAK_REALM}"
 # Redis settings for state manager
 REDIS_HOST = env.str("REDIS_HOST", "localhost")
 REDIS_PORT = env.int("REDIS_PORT", 6379)
-REDIS_STATE_DB = env.int("REDIS_STATE_DB", 0)
+REDIS_DB = env.int("REDIS_DB", 0)
+MAX_REQUESTS = env.int("MAX_REQUESTS", 3)
+MAX_REQUESTS_TIME_WINDOW_SEC = env.int("MAX_REQUESTS_TIME_WINDOW_SEC", 1)
