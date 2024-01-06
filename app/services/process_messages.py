@@ -37,7 +37,7 @@ async def dispatch_transformed_observation_v2(
     }
 
     if not destination_id:
-        error_msg = "No destination set for the observation.",
+        error_msg = f"No destination set for the observation {gundi_id}. Discarded.",
         logger.error(
             error_msg,
             extra=extra_dict,
@@ -47,23 +47,25 @@ async def dispatch_transformed_observation_v2(
     # Get details about the destination
     destination_integration = await get_integration_details(integration_id=destination_id)
     if not destination_integration:
+        error_msg = f"No destination config details found for {destination_id}"
         logger.error(
-            f"No destination config details found",
+            error_msg,
             extra={**extra_dict, ExtraKeys.AttentionNeeded: True},
         )
-        raise ReferenceDataError
+        raise ReferenceDataError(error_msg)
 
     try:  # Select the dispatcher
         dispatcher_cls = dispatchers.dispatcher_cls_by_type[stream_type]
     except KeyError as e:
+        error_msg = f"No dispatcher found for stream type {stream_type}"
         logger.error(
-            f"No dispatcher found",
+            error_msg,
             extra={
                 **extra_dict,
                 ExtraKeys.AttentionNeeded: True,
             }
         )
-        raise Exception(f"No dispatcher found for stream type {stream_type}")
+        raise DispatcherException(error_msg)
     else:  # Send the observation to the destination
         try:
             dispatcher = dispatcher_cls(
@@ -185,7 +187,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
         related_to = attributes.get("related_to")
         logger.debug(f"transformed_observation: {transformed_observation}")
         logger.info(
-            "received transformed observation",
+            f"Received transformed observation {gundi_id}",
             extra={
                 ExtraKeys.DeviceId: source_id,
                 ExtraKeys.InboundIntId: data_provider_id,
@@ -198,7 +200,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
         )
         try:
             logger.info(
-                "Dispatching for transformed observation.",
+                f"Dispatching transformed observation {gundi_id}...",
                 extra={
                     ExtraKeys.InboundIntId: data_provider_id,
                     ExtraKeys.OutboundIntId: destination_id,
@@ -224,8 +226,18 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                 current_span.add_event(
                     name="smart_dispatcher.observation_dispatched_successfully"
                 )
+                logger.info(
+                    f"Observation {gundi_id} dispatched successfully.",
+                    extra={
+                        ExtraKeys.InboundIntId: data_provider_id,
+                        ExtraKeys.OutboundIntId: destination_id,
+                        ExtraKeys.StreamType: stream_type,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.RelatedTo: related_to
+                    },
+                )
         except (DispatcherException, ReferenceDataError) as e:
-            error_msg = f"External error occurred processing transformed observation: {e}"
+            error_msg = f"External error occurred processing transformed observation {gundi_id}: {e}"
             logger.exception(
                 error_msg,
                 extra={
@@ -233,6 +245,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                     ExtraKeys.DeviceId: source_id,
                     ExtraKeys.InboundIntId: data_provider_id,
                     ExtraKeys.OutboundIntId: destination_id,
+                    ExtraKeys.GundiId: gundi_id,
                     ExtraKeys.StreamType: stream_type,
                 },
             )
@@ -242,7 +255,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
 
         except Exception as e:
             error_msg = (
-                f"Unexpected internal error occurred processing transformed observation: {e}"
+                f"Unexpected internal error occurred processing transformed observation {gundi_id}: {e}"
             )
             logger.exception(
                 error_msg,
@@ -250,6 +263,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                     ExtraKeys.AttentionNeeded: True,
                     ExtraKeys.DeadLetter: True,
                     ExtraKeys.DeviceId: source_id,
+                    ExtraKeys.GundiId: gundi_id,
                     ExtraKeys.InboundIntId: data_provider_id,
                     ExtraKeys.OutboundIntId: destination_id,
                     ExtraKeys.StreamType: stream_type,
@@ -275,9 +289,7 @@ def is_too_old(timestamp):
 
 async def process_request(request):
     # Extract the observation and attributes from the CloudEvent
-    # payload = base64.b64decode(message["message"]["data"]).decode("utf-8").strip()
     json_data = await request.json()
-    print(f"process_request > JSON: {json_data}")
     transformed_observation, attributes = extract_fields_from_message(json_data["message"])
     # Load tracing context
     tracing.pubsub_instrumentation.load_context_from_attributes(attributes)
