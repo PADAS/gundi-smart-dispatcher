@@ -305,11 +305,9 @@ class RateLimiterSemaphore:
         self.url = url
         self.max_requests = kwargs.get("max_requests", settings.MAX_REQUESTS)
         self.max_requests_time_window_sec = kwargs.get("max_requests_time_window_sec", settings.MAX_REQUESTS_TIME_WINDOW_SEC)
-        # Redis client bound to pool of connections (auto-reconnecting).
         self.redis_client = redis_client
-        print("RateLimiter")
 
-    # Support using this client as an async context manager.
+    # Support using this as an async context manager.
     async def __aenter__(self):
         await self.acquire()
         return self
@@ -328,7 +326,7 @@ class RateLimiterSemaphore:
             if auto_release:
                 operations = operations.expire(self.url, self.max_requests_time_window_sec)
             res = await operations.execute()
-
+        logger.debug(f"RateLimiterSemaphore<{self.url}>: {res[0]}/{self.max_requests} requests")
         if res[0] > self.max_requests:
             raise errors.TooManyRequests(
                 f"Too many requests in the last {self.max_requests_time_window_sec} seconds: {res[0]}"
