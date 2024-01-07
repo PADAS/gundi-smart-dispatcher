@@ -16,5 +16,5 @@ class DispatcherException(Exception):
     pass
 
 
-class TooManyRequests(DispatcherException):
+class TooManyRequests(Exception):
     pass

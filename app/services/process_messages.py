@@ -15,7 +15,7 @@ from app.core.utils import (
 )
 from gundi_core.schemas import v2 as gundi_schemas_v2
 from gundi_core import events as system_events
-from app.core.errors import DispatcherException, ReferenceDataError
+from app.core.errors import DispatcherException, ReferenceDataError, TooManyRequests
 from app.core import tracing
 from . import dispatchers
 
@@ -252,7 +252,25 @@ async def process_transformed_observation_v2(transformed_observation, attributes
             current_span.set_attribute("error", error_msg)
             # Raise the exception so the function execution is marked as failed and retried later
             raise e
-
+        except TooManyRequests as e:
+            error_msg = f"Throttling request {gundi_id}: {e}"
+            logger.exception(
+                error_msg,
+                extra={
+                    ExtraKeys.AttentionNeeded: True,
+                    ExtraKeys.DeviceId: source_id,
+                    ExtraKeys.InboundIntId: data_provider_id,
+                    ExtraKeys.OutboundIntId: destination_id,
+                    ExtraKeys.GundiId: gundi_id,
+                    ExtraKeys.StreamType: stream_type,
+                },
+            )
+            current_span.set_attribute("is_throttled", True)
+            current_span.add_event(
+                name="smart_dispatcher.observation_throttled"
+            )
+            # Raise the exception so the function execution is marked as failed and retried later
+            raise e
         except Exception as e:
             error_msg = (
                 f"Unexpected internal error occurred processing transformed observation {gundi_id}: {e}"
