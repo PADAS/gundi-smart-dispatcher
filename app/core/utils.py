@@ -4,8 +4,8 @@ import base64
 import json
 import aiohttp
 import logging
-import walrus
 import backoff
+import aioredis
 from app import settings
 from enum import Enum
 from gundi_core import schemas as gundi_schemas
@@ -25,8 +25,10 @@ def get_redis_db():
     logger.debug(
         f"Connecting to REDIS DB :{settings.REDIS_DB} at {settings.REDIS_HOST}:{settings.REDIS_PORT}"
     )
-    return walrus.Database(
-        host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB
+    return aioredis.from_url(
+        f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
+        encoding="utf-8",
+        decode_responses=True
     )
 
 
@@ -35,9 +37,9 @@ _cache_db = get_redis_db()
 connect_timeout, read_timeout = settings.DEFAULT_REQUESTS_TIMEOUT
 
 
-def read_config_from_cache_safe(cache_key, extra_dict):
+async def read_config_from_cache_safe(cache_key, extra_dict):
     try:
-        config = _cache_db.get(cache_key)
+        config = await _cache_db.get(cache_key)
     except redis_exceptions.ConnectionError as e:
         logger.warning(
             f"ConnectionError while reading integration configuration from Cache: {e}", extra={**extra_dict}
@@ -52,9 +54,9 @@ def read_config_from_cache_safe(cache_key, extra_dict):
         return config
 
 
-def write_config_in_cache_safe(key, ttl, config, extra_dict):
+async def write_config_in_cache_safe(key, ttl, config, extra_dict):
     try:
-        _cache_db.setex(key, ttl, config.json())
+        await _cache_db.setex(key, ttl, config.json())
     except redis_exceptions.ConnectionError as e:
         logger.warning(
             f"ConnectionError while writing integration configuration to Cache: {e}",
@@ -82,7 +84,7 @@ async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integ
 
     # Retrieve from cache if possible
     cache_key = f"integration_details.{integration_id}"
-    cached = read_config_from_cache_safe(cache_key=cache_key, extra_dict=extra_dict)
+    cached = await read_config_from_cache_safe(cache_key=cache_key, extra_dict=extra_dict)
 
     if cached:
         config = gundi_schemas.v2.Integration.parse_raw(cached)
@@ -116,7 +118,7 @@ async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integ
             raise ReferenceDataError(error_msg)
         else:
             if integration:  # don't cache empty response
-                write_config_in_cache_safe(
+                await write_config_in_cache_safe(
                     key=cache_key,
                     ttl=_cache_ttl,
                     config=integration,
