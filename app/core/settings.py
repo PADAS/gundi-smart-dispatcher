@@ -14,9 +14,12 @@ REDIS_DB = env.int("REDIS_DB", 3)
 
 # N-seconds to cache portal responses for configuration objects.
 PORTAL_CONFIG_OBJECT_CACHE_TTL = env.int("PORTAL_CONFIG_OBJECT_CACHE_TTL", 60)
-DISPATCHED_OBSERVATIONS_CACHE_TTL = env.int("PORTAL_CONFIG_OBJECT_CACHE_TTL", 60 * 60)  # 1 Hour
+DISPATCHED_OBSERVATIONS_CACHE_TTL = env.int(
+    "PORTAL_CONFIG_OBJECT_CACHE_TTL", 60 * 60
+)  # 1 Hour
 
 # Used in OTel traces/spans to set the 'environment' attribute, used on metrics calculation
+TRACING_ENABLED = env.bool("TRACING_ENABLED", True)
 TRACE_ENVIRONMENT = env.str("TRACE_ENVIRONMENT", "dev")
 
 # Retries and dead-letter settings
