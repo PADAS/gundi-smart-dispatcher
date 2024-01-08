@@ -198,20 +198,20 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                 ExtraKeys.RelatedTo: related_to
             },
         )
-        try:
-            logger.info(
-                f"Dispatching transformed observation {gundi_id}...",
-                extra={
-                    ExtraKeys.InboundIntId: data_provider_id,
-                    ExtraKeys.OutboundIntId: destination_id,
-                    ExtraKeys.StreamType: stream_type,
-                    ExtraKeys.GundiId: gundi_id,
-                    ExtraKeys.RelatedTo: related_to
-                },
-            )
-            with tracing.tracer.start_as_current_span(
+        with tracing.tracer.start_as_current_span(
                 "smart_dispatcher.dispatch_transformed_observation", kind=SpanKind.CLIENT
-            ) as current_span:
+        ) as current_span:
+            try:
+                logger.info(
+                    f"Dispatching transformed observation {gundi_id}...",
+                    extra={
+                        ExtraKeys.InboundIntId: data_provider_id,
+                        ExtraKeys.OutboundIntId: destination_id,
+                        ExtraKeys.StreamType: stream_type,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.RelatedTo: related_to
+                    },
+                )
                 await dispatch_transformed_observation_v2(
                     observation=transformed_observation,
                     stream_type=stream_type,
@@ -236,61 +236,61 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                         ExtraKeys.RelatedTo: related_to
                     },
                 )
-        except (DispatcherException, ReferenceDataError) as e:
-            error_msg = f"External error occurred processing transformed observation {gundi_id}: {e}"
-            logger.exception(
-                error_msg,
-                extra={
-                    ExtraKeys.AttentionNeeded: True,
-                    ExtraKeys.DeviceId: source_id,
-                    ExtraKeys.InboundIntId: data_provider_id,
-                    ExtraKeys.OutboundIntId: destination_id,
-                    ExtraKeys.GundiId: gundi_id,
-                    ExtraKeys.StreamType: stream_type,
-                },
-            )
-            current_span.set_attribute("error", error_msg)
-            # Raise the exception so the function execution is marked as failed and retried later
-            raise e
-        except TooManyRequests as e:
-            error_msg = f"Throttling request {gundi_id}: {e}"
-            logger.exception(
-                error_msg,
-                extra={
-                    ExtraKeys.AttentionNeeded: True,
-                    ExtraKeys.DeviceId: source_id,
-                    ExtraKeys.InboundIntId: data_provider_id,
-                    ExtraKeys.OutboundIntId: destination_id,
-                    ExtraKeys.GundiId: gundi_id,
-                    ExtraKeys.StreamType: stream_type,
-                },
-            )
-            current_span.set_attribute("is_throttled", True)
-            current_span.add_event(
-                name="smart_dispatcher.observation_throttled"
-            )
-            # Raise the exception so the function execution is marked as failed and retried later
-            raise e
-        except Exception as e:
-            error_msg = (
-                f"Unexpected internal error occurred processing transformed observation {gundi_id}: {e}"
-            )
-            logger.exception(
-                error_msg,
-                extra={
-                    ExtraKeys.AttentionNeeded: True,
-                    ExtraKeys.DeadLetter: True,
-                    ExtraKeys.DeviceId: source_id,
-                    ExtraKeys.GundiId: gundi_id,
-                    ExtraKeys.InboundIntId: data_provider_id,
-                    ExtraKeys.OutboundIntId: destination_id,
-                    ExtraKeys.StreamType: stream_type,
-                },
-            )
-            # Unexpected internal errors will be redirected straight to deadletter
-            current_span.set_attribute("error", error_msg)
-            # Send it to a dead letter pub/sub topic
-            await send_observation_to_dead_letter_topic(transformed_observation, attributes)
+            except (DispatcherException, ReferenceDataError) as e:
+                error_msg = f"External error occurred processing transformed observation {gundi_id}: {e}"
+                logger.exception(
+                    error_msg,
+                    extra={
+                        ExtraKeys.AttentionNeeded: True,
+                        ExtraKeys.DeviceId: source_id,
+                        ExtraKeys.InboundIntId: data_provider_id,
+                        ExtraKeys.OutboundIntId: destination_id,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.StreamType: stream_type,
+                    },
+                )
+                current_span.set_attribute("error", error_msg)
+                # Raise the exception so the function execution is marked as failed and retried later
+                raise e
+            except TooManyRequests as e:
+                error_msg = f"Throttling request {gundi_id}: {e}"
+                logger.exception(
+                    error_msg,
+                    extra={
+                        ExtraKeys.AttentionNeeded: True,
+                        ExtraKeys.DeviceId: source_id,
+                        ExtraKeys.InboundIntId: data_provider_id,
+                        ExtraKeys.OutboundIntId: destination_id,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.StreamType: stream_type,
+                    },
+                )
+                current_span.set_attribute("is_throttled", True)
+                current_span.add_event(
+                    name="smart_dispatcher.observation_throttled"
+                )
+                # Raise the exception so the function execution is marked as failed and retried later
+                raise e
+            except Exception as e:
+                error_msg = (
+                    f"Unexpected internal error occurred processing transformed observation {gundi_id}: {e}"
+                )
+                logger.exception(
+                    error_msg,
+                    extra={
+                        ExtraKeys.AttentionNeeded: True,
+                        ExtraKeys.DeadLetter: True,
+                        ExtraKeys.DeviceId: source_id,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.InboundIntId: data_provider_id,
+                        ExtraKeys.OutboundIntId: destination_id,
+                        ExtraKeys.StreamType: stream_type,
+                    },
+                )
+                # Unexpected internal errors will be redirected straight to deadletter
+                current_span.set_attribute("error", error_msg)
+                # Send it to a dead letter pub/sub topic
+                await send_observation_to_dead_letter_topic(transformed_observation, attributes)
 
 
 def is_too_old(timestamp):
