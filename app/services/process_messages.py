@@ -95,7 +95,7 @@ async def dispatch_transformed_observation_v2(
                 ),
                 topic_name=settings.DISPATCHER_EVENTS_TOPIC
             )
-            raise DispatcherException(f"Exception occurred dispatching observation: {e}")
+            raise e
         else:
             # Cache data related to the dispatched observation
             if isinstance(result, list):
