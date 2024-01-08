@@ -200,7 +200,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
         )
         with tracing.tracer.start_as_current_span(
                 "smart_dispatcher.dispatch_transformed_observation", kind=SpanKind.CLIENT
-        ) as current_span:
+        ) as subspan:
             try:
                 logger.info(
                     f"Dispatching transformed observation {gundi_id}...",
@@ -221,9 +221,9 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                     gundi_id=gundi_id,
                     related_to=related_to
                 )
-                current_span.set_attribute("is_dispatched_successfully", True)
-                current_span.set_attribute("destination_id", str(destination_id))
-                current_span.add_event(
+                subspan.set_attribute("is_dispatched_successfully", True)
+                subspan.set_attribute("destination_id", str(destination_id))
+                subspan.add_event(
                     name="smart_dispatcher.observation_dispatched_successfully"
                 )
                 logger.info(
@@ -249,7 +249,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                         ExtraKeys.StreamType: stream_type,
                     },
                 )
-                current_span.set_attribute("error", error_msg)
+                subspan.set_attribute("error", error_msg)
                 # Raise the exception so the function execution is marked as failed and retried later
                 raise e
             except TooManyRequests as e:
@@ -265,8 +265,8 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                         ExtraKeys.StreamType: stream_type,
                     },
                 )
-                current_span.set_attribute("is_throttled", True)
-                current_span.add_event(
+                subspan.set_attribute("is_throttled", True)
+                subspan.add_event(
                     name="smart_dispatcher.observation_throttled"
                 )
                 # Raise the exception so the function execution is marked as failed and retried later
@@ -288,7 +288,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                     },
                 )
                 # Unexpected internal errors will be redirected straight to deadletter
-                current_span.set_attribute("error", error_msg)
+                subspan.set_attribute("error", error_msg)
                 # Send it to a dead letter pub/sub topic
                 await send_observation_to_dead_letter_topic(transformed_observation, attributes)
 
