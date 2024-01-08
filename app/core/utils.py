@@ -4,6 +4,7 @@ import base64
 import json
 import aiohttp
 import logging
+import httpx
 import backoff
 import aioredis
 from app import settings
@@ -69,6 +70,7 @@ async def write_config_in_cache_safe(key, ttl, config, extra_dict):
         )
 
 
+@backoff.on_exception(backoff.expo, (httpx.HTTPError,), max_tries=5)
 async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integration:
     """
     Helper function to retrieve integration configurations from Gundi API v2
@@ -115,7 +117,7 @@ async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integ
                 error_msg,
                 extra=extra_dict,
             )
-            raise ReferenceDataError(error_msg)
+            raise e
         else:
             if integration:  # don't cache empty response
                 await write_config_in_cache_safe(
