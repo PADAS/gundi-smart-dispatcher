@@ -16,7 +16,6 @@ from gundi_client_v2 import GundiClient
 from redis import exceptions as redis_exceptions
 from gcloud.aio import pubsub
 from . import settings, errors
-from .errors import ReferenceDataError
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +28,7 @@ def get_redis_db():
     return aioredis.from_url(
         f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
         encoding="utf-8",
-        decode_responses=True
+        decode_responses=True,
     )
 
 
@@ -43,12 +42,14 @@ async def read_config_from_cache_safe(cache_key, extra_dict):
         config = await _cache_db.get(cache_key)
     except redis_exceptions.ConnectionError as e:
         logger.warning(
-            f"ConnectionError while reading integration configuration from Cache: {e}", extra={**extra_dict}
+            f"ConnectionError while reading integration configuration from Cache: {e}",
+            extra={**extra_dict},
         )
         config = None
     except Exception as e:
         logger.warning(
-            f"Unknown Error while reading integration configuration from Cache: {e}", extra={**extra_dict}
+            f"Unknown Error while reading integration configuration from Cache: {e}",
+            extra={**extra_dict},
         )
         config = None
     finally:
@@ -61,12 +62,12 @@ async def write_config_in_cache_safe(key, ttl, config, extra_dict):
     except redis_exceptions.ConnectionError as e:
         logger.warning(
             f"ConnectionError while writing integration configuration to Cache: {e}",
-            extra={**extra_dict}
+            extra={**extra_dict},
         )
     except Exception as e:
         logger.warning(
             f"Unknown Error while writing integration configuration to Cache: {e}",
-            extra={**extra_dict}
+            extra={**extra_dict},
         )
 
 
@@ -86,7 +87,9 @@ async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integ
 
     # Retrieve from cache if possible
     cache_key = f"integration_details.{integration_id}"
-    cached = await read_config_from_cache_safe(cache_key=cache_key, extra_dict=extra_dict)
+    cached = await read_config_from_cache_safe(
+        cache_key=cache_key, extra_dict=extra_dict
+    )
 
     if cached:
         config = gundi_schemas.v2.Integration.parse_raw(cached)
@@ -112,7 +115,9 @@ async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integ
             )
         # ToDo: Catch more specific exceptions once the gundi client supports them
         except Exception as e:
-            error_msg = f"Error retrieving integration details from the portal (v2): {e}"
+            error_msg = (
+                f"Error retrieving integration details from the portal (v2): {e}"
+            )
             logger.error(
                 error_msg,
                 extra=extra_dict,
@@ -124,33 +129,32 @@ async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integ
                     key=cache_key,
                     ttl=_cache_ttl,
                     config=integration,
-                    extra_dict=extra_dict
+                    extra_dict=extra_dict,
                 )
             return integration
 
 
-async def get_dispatched_observation(gundi_id: str, destination_id: str) -> gundi_schemas_v2.DispatchedObservation:
+async def get_dispatched_observation(
+    gundi_id: str, destination_id: str
+) -> gundi_schemas_v2.DispatchedObservation:
     """
     Helper function that looks into the cache for dispatched observations
     """
     observation = None
-    extra_dict = {
-        ExtraKeys.GundiId: gundi_id,
-        ExtraKeys.OutboundIntId: destination_id
-    }
+    extra_dict = {ExtraKeys.GundiId: gundi_id, ExtraKeys.OutboundIntId: destination_id}
     try:
         cache_key = f"dispatched_observation.{gundi_id}.{destination_id}"
         cached_data = _cache_db.get(cache_key)
         if cached_data:
-            observation = gundi_schemas_v2.DispatchedObservation.parse_raw(
-                cached_data
-            )
+            observation = gundi_schemas_v2.DispatchedObservation.parse_raw(cached_data)
         else:  # Try to rebuild the cache entry
             # Retrieve traces from the portal
-            logger.debug(f"Cache miss for dispatched observation.", extra={**extra_dict})
+            logger.debug(
+                f"Cache miss for dispatched observation.", extra={**extra_dict}
+            )
             connect_timeout, read_timeout = settings.DEFAULT_REQUESTS_TIMEOUT
             async with GundiClient(
-                    connect_timeout=connect_timeout, data_timeout=read_timeout
+                connect_timeout=connect_timeout, data_timeout=read_timeout
             ) as portal_v2:
                 try:
                     filters = {
@@ -164,10 +168,7 @@ async def get_dispatched_observation(gundi_id: str, destination_id: str) -> gund
                     error_msg = f"Error retrieving traces from the portal (v2): {e}"
                     logger.error(
                         error_msg,
-                        extra={
-                            **extra_dict,
-                            **filters
-                        },
+                        extra={**extra_dict, **filters},
                     )
                     return None
                 else:
@@ -178,24 +179,26 @@ async def get_dispatched_observation(gundi_id: str, destination_id: str) -> gund
                         external_id=observation_trace.external_id,
                         data_provider_id=observation_trace.data_provider,
                         destination_id=observation_trace.destination,
-                        delivered_at=observation_trace.delivered_at
+                        delivered_at=observation_trace.delivered_at,
                     )
                     # Save in cache again
                     cache_dispatched_observation(observation=observation)
     except redis_exceptions.ConnectionError as e:
         logger.error(
-            f"ConnectionError while reading dispatched observations from Cache: {e}", extra={**extra_dict}
+            f"ConnectionError while reading dispatched observations from Cache: {e}",
+            extra={**extra_dict},
         )
     except Exception as e:
         logger.error(
-            f"Internal Error while reading dispatched observations from Cache: {e}", extra={**extra_dict}
+            f"Internal Error while reading dispatched observations from Cache: {e}",
+            extra={**extra_dict},
         )
     finally:
         return observation
 
 
 def cache_dispatched_observation(
-        observation: gundi_schemas_v2.DispatchedObservation,
+    observation: gundi_schemas_v2.DispatchedObservation,
 ):
     try:
         gundi_id = str(observation.gundi_id)
@@ -206,29 +209,29 @@ def cache_dispatched_observation(
 
         extra_dict = {
             ExtraKeys.GundiId: gundi_id,
-            ExtraKeys.OutboundIntId: destination_id
+            ExtraKeys.OutboundIntId: destination_id,
         }
         cache_key = f"dispatched_observation.{gundi_id}.{destination_id}"
         _cache_db.setex(
             name=cache_key,
             time=settings.DISPATCHED_OBSERVATIONS_CACHE_TTL,
-            value=observation.json()
+            value=observation.json(),
         )
     except redis_exceptions.ConnectionError as e:
         logger.warning(
             f"ConnectionError while writing integration configuration to Cache: {e}",
-            extra=extra_dict
+            extra=extra_dict,
         )
     except Exception as e:
         logger.warning(
             f"Unknown Error while writing integration configuration to Cache: {e}",
-            extra=extra_dict
+            extra=extra_dict,
         )
 
 
 def extract_fields_from_message(message):
     if message:
-        data = base64.b64decode(message.get("data", "").encode('utf-8'))
+        data = base64.b64decode(message.get("data", "").encode("utf-8"))
         observation = json.loads(data)
         attributes = message.get("attributes")
         if not observation:
@@ -269,20 +272,19 @@ def is_null(value):
 
 def find_config_for_action(configurations, action_value):
     return next(
-        (
-            config for config in configurations
-            if config.action.value == action_value
-        ),
-        None
+        (config for config in configurations if config.action.value == action_value),
+        None,
     )
 
 
 # Events for other services or system components
-@backoff.on_exception(backoff.expo, (aiohttp.ClientError, asyncio.TimeoutError), max_tries=5)
+@backoff.on_exception(
+    backoff.expo, (aiohttp.ClientError, asyncio.TimeoutError), max_tries=5
+)
 async def publish_event(event: SystemEventBaseModel, topic_name: str):
     timeout_settings = aiohttp.ClientTimeout(total=10.0)
     async with aiohttp.ClientSession(
-            raise_for_status=True, timeout=timeout_settings
+        raise_for_status=True, timeout=timeout_settings
     ) as session:
         client = pubsub.PublisherClient(session=session)
         # Get the topic
@@ -304,11 +306,12 @@ async def publish_event(event: SystemEventBaseModel, topic_name: str):
 
 
 class RateLimiterSemaphore:
-
     def __init__(self, redis_client, url, **kwargs):
         self.url = url
         self.max_requests = kwargs.get("max_requests", settings.MAX_REQUESTS)
-        self.max_requests_time_window_sec = kwargs.get("max_requests_time_window_sec", settings.MAX_REQUESTS_TIME_WINDOW_SEC)
+        self.max_requests_time_window_sec = kwargs.get(
+            "max_requests_time_window_sec", settings.MAX_REQUESTS_TIME_WINDOW_SEC
+        )
         self.redis_client = redis_client
 
     # Support using this as an async context manager.
@@ -328,9 +331,13 @@ class RateLimiterSemaphore:
         async with self.redis_client.pipeline(transaction=True) as pipe:
             operations = pipe.incr(self.url)
             if auto_release:
-                operations = operations.expire(self.url, self.max_requests_time_window_sec)
+                operations = operations.expire(
+                    self.url, self.max_requests_time_window_sec
+                )
             res = await operations.execute()
-        logger.debug(f"RateLimiterSemaphore<{self.url}>: {res[0]}/{self.max_requests} requests")
+        logger.debug(
+            f"RateLimiterSemaphore<{self.url}>: {res[0]}/{self.max_requests} requests"
+        )
         if res[0] > self.max_requests:
             raise errors.TooManyRequests(
                 f"Too many requests in the last {self.max_requests_time_window_sec} seconds: {res[0]}"

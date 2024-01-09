@@ -24,8 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 async def dispatch_transformed_observation_v2(
-    observation, stream_type: str, data_provider_id:str, provider_key: str, destination_id: str,
-    gundi_id: str, related_to=None
+    observation,
+    stream_type: str,
+    data_provider_id: str,
+    provider_key: str,
+    destination_id: str,
+    gundi_id: str,
+    related_to=None,
 ):
     extra_dict = {
         ExtraKeys.OutboundIntId: destination_id,
@@ -33,11 +38,11 @@ async def dispatch_transformed_observation_v2(
         ExtraKeys.Observation: observation,
         ExtraKeys.StreamType: stream_type,
         ExtraKeys.GundiId: gundi_id,
-        ExtraKeys.RelatedTo: related_to
+        ExtraKeys.RelatedTo: related_to,
     }
 
     if not destination_id:
-        error_msg = f"No destination set for the observation {gundi_id}. Discarded.",
+        error_msg = (f"No destination set for the observation {gundi_id}. Discarded.",)
         logger.error(
             error_msg,
             extra=extra_dict,
@@ -45,7 +50,9 @@ async def dispatch_transformed_observation_v2(
         raise DispatcherException(error_msg)
 
     # Get details about the destination
-    destination_integration = await get_integration_details(integration_id=destination_id)
+    destination_integration = await get_integration_details(
+        integration_id=destination_id
+    )
     if not destination_integration:
         error_msg = f"No destination config details found for {destination_id}"
         logger.error(
@@ -63,7 +70,7 @@ async def dispatch_transformed_observation_v2(
             extra={
                 **extra_dict,
                 ExtraKeys.AttentionNeeded: True,
-            }
+            },
         )
         raise DispatcherException(error_msg)
     else:  # Send the observation to the destination
@@ -90,10 +97,10 @@ async def dispatch_transformed_observation_v2(
                         external_id=None,  # ID returned by the destination system
                         data_provider_id=data_provider_id,
                         destination_id=destination_id,
-                        delivered_at=datetime.now(timezone.utc)  # UTC
+                        delivered_at=datetime.now(timezone.utc),  # UTC
                     )
                 ),
-                topic_name=settings.DISPATCHER_EVENTS_TOPIC
+                topic_name=settings.DISPATCHER_EVENTS_TOPIC,
             )
             raise e
         else:
@@ -106,7 +113,7 @@ async def dispatch_transformed_observation_v2(
                 external_id=result.get("id"),  # ID returned by the destination system
                 data_provider_id=data_provider_id,
                 destination_id=destination_id,
-                delivered_at=datetime.now(timezone.utc)  # UTC
+                delivered_at=datetime.now(timezone.utc),  # UTC
             )
             cache_dispatched_observation(observation=dispatched_observation)
             # Emit events for the portal and other interested services (EDA)
@@ -114,13 +121,13 @@ async def dispatch_transformed_observation_v2(
                 event=system_events.ObservationDelivered(
                     payload=dispatched_observation
                 ),
-                topic_name=settings.DISPATCHER_EVENTS_TOPIC
+                topic_name=settings.DISPATCHER_EVENTS_TOPIC,
             )
 
 
 async def send_observation_to_dead_letter_topic(transformed_observation, attributes):
     with tracing.tracer.start_as_current_span(
-            "send_message_to_dead_letter_topic", kind=SpanKind.CLIENT
+        "send_message_to_dead_letter_topic", kind=SpanKind.CLIENT
     ) as current_span:
 
         print(f"Forwarding observation to dead letter topic: {transformed_observation}")
@@ -138,7 +145,9 @@ async def send_observation_to_dead_letter_topic(transformed_observation, attribu
             current_span.set_attribute("topic", topic_name)
             topic = client.topic_path(settings.GCP_PROJECT_ID, topic_name)
             # Prepare the payload
-            binary_payload = json.dumps(transformed_observation, default=str).encode("utf-8")
+            binary_payload = json.dumps(transformed_observation, default=str).encode(
+                "utf-8"
+            )
             messages = [pubsub.PubsubMessage(binary_payload, **attributes)]
             logger.info(f"Sending observation to PubSub topic {topic_name}..")
             try:  # Send to pubsub
@@ -160,28 +169,34 @@ async def send_observation_to_dead_letter_topic(transformed_observation, attribu
 
 async def process_transformed_observation_v2(transformed_observation, attributes):
     with tracing.tracer.start_as_current_span(
-            "smart_dispatcher.process_transformed_observation", kind=SpanKind.CLIENT
+        "smart_dispatcher.process_transformed_observation", kind=SpanKind.CLIENT
     ) as current_span:
         current_span.add_event(
             name="smart_dispatcher.transformed_observation_received_at_dispatcher"
         )
         stream_type = attributes.get("stream_type")
         if stream_type not in dispatchers.dispatcher_cls_by_type.keys():
-            error_msg = f"Stream type `{stream_type}` is not supported by this dispatcher."
+            error_msg = (
+                f"Stream type `{stream_type}` is not supported by this dispatcher."
+            )
             logger.error(
                 error_msg,
                 extra={
                     ExtraKeys.AttentionNeeded: True,
                 },
             )
-            raise DispatcherException(f"Exception occurred dispatching observation: {error_msg}")
+            raise DispatcherException(
+                f"Exception occurred dispatching observation: {error_msg}"
+            )
 
         current_span.set_attribute("transformed_message", str(transformed_observation))
         current_span.set_attribute("environment", settings.TRACE_ENVIRONMENT)
         current_span.set_attribute("service", "smart-dispatcher")
         source_id = attributes.get("external_source_id")
         data_provider_id = attributes.get("data_provider_id")
-        provider_key = transformed_observation.pop("provider_key", attributes.get("provider_key"))
+        provider_key = transformed_observation.pop(
+            "provider_key", attributes.get("provider_key")
+        )
         destination_id = attributes.get("destination_id")
         gundi_id = attributes.get("gundi_id")
         related_to = attributes.get("related_to")
@@ -195,11 +210,11 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                 ExtraKeys.OutboundIntId: destination_id,
                 ExtraKeys.StreamType: stream_type,
                 ExtraKeys.GundiId: gundi_id,
-                ExtraKeys.RelatedTo: related_to
+                ExtraKeys.RelatedTo: related_to,
             },
         )
         with tracing.tracer.start_as_current_span(
-                "smart_dispatcher.dispatch_transformed_observation", kind=SpanKind.CLIENT
+            "smart_dispatcher.dispatch_transformed_observation", kind=SpanKind.CLIENT
         ) as subspan:
             try:
                 logger.info(
@@ -209,7 +224,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                         ExtraKeys.OutboundIntId: destination_id,
                         ExtraKeys.StreamType: stream_type,
                         ExtraKeys.GundiId: gundi_id,
-                        ExtraKeys.RelatedTo: related_to
+                        ExtraKeys.RelatedTo: related_to,
                     },
                 )
                 await dispatch_transformed_observation_v2(
@@ -219,7 +234,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                     provider_key=provider_key,
                     destination_id=destination_id,
                     gundi_id=gundi_id,
-                    related_to=related_to
+                    related_to=related_to,
                 )
                 subspan.set_attribute("is_dispatched_successfully", True)
                 subspan.set_attribute("destination_id", str(destination_id))
@@ -233,7 +248,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                         ExtraKeys.OutboundIntId: destination_id,
                         ExtraKeys.StreamType: stream_type,
                         ExtraKeys.GundiId: gundi_id,
-                        ExtraKeys.RelatedTo: related_to
+                        ExtraKeys.RelatedTo: related_to,
                     },
                 )
             except (DispatcherException, ReferenceDataError) as e:
@@ -266,14 +281,12 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                     },
                 )
                 subspan.set_attribute("is_throttled", True)
-                subspan.add_event(
-                    name="smart_dispatcher.observation_throttled"
-                )
+                subspan.add_event(name="smart_dispatcher.observation_throttled")
                 # Raise the exception so the function execution is marked as failed and retried later
                 raise e
             except Exception as e:
                 error_msg = (
-                    f"Unexpected internal error occurred processing transformed observation {gundi_id}: {e}"
+                    f"Error occurred processing transformed observation {gundi_id}: {e}"
                 )
                 logger.exception(
                     error_msg,
@@ -289,8 +302,8 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                 )
                 # Unexpected internal errors will be redirected straight to deadletter
                 subspan.set_attribute("error", error_msg)
-                # Send it to a dead letter pub/sub topic
-                await send_observation_to_dead_letter_topic(transformed_observation, attributes)
+                # Raise the exception so the function execution is marked as failed and retried later
+                raise e
 
 
 def is_too_old(timestamp):
@@ -308,19 +321,35 @@ def is_too_old(timestamp):
 async def process_request(request):
     # Extract the observation and attributes from the CloudEvent
     json_data = await request.json()
-    transformed_observation, attributes = extract_fields_from_message(json_data["message"])
+    transformed_observation, attributes = extract_fields_from_message(
+        json_data["message"]
+    )
     # Load tracing context
     tracing.pubsub_instrumentation.load_context_from_attributes(attributes)
     with tracing.tracer.start_as_current_span(
-            "smart_dispatcher.process_message", kind=SpanKind.CLIENT
+        "smart_dispatcher.process_request", kind=SpanKind.CLIENT
     ) as current_span:
         if attributes and attributes.get("gundi_version", "v1") == "v1":
-            logger.warning(f"Message discarded. Messages from Gundi v1 are not supported by this dispatcher.")
-            await send_observation_to_dead_letter_topic(transformed_observation, attributes)
-            return {"status": "discarded", "reason": "Gundi v1 messages are not supported"}
+            logger.warning(
+                f"Message discarded. Messages from Gundi v1 are not supported by this dispatcher."
+            )
+            await send_observation_to_dead_letter_topic(
+                transformed_observation, attributes
+            )
+            return {
+                "status": "discarded",
+                "reason": "Gundi v1 messages are not supported",
+            }
         if is_too_old(timestamp=request.headers.get("ce-time")):
-            logger.warning(f"Message discarded. The message is too old or the retry time limit has been reached.")
-            await send_observation_to_dead_letter_topic(transformed_observation, attributes)
-            return {"status": "discarded", "reason": "Message is too old or the retry time limit has been reach"}
+            logger.warning(
+                f"Message discarded. The message is too old or the retry time limit has been reached."
+            )
+            await send_observation_to_dead_letter_topic(
+                transformed_observation, attributes
+            )
+            return {
+                "status": "discarded",
+                "reason": "Message is too old or the retry time limit has been reach",
+            }
         await process_transformed_observation_v2(transformed_observation, attributes)
         return {"status": "processed"}
