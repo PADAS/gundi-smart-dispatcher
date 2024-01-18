@@ -182,7 +182,7 @@ async def get_dispatched_observation(
                         delivered_at=observation_trace.delivered_at,
                     )
                     # Save in cache again
-                    cache_dispatched_observation(observation=observation)
+                    await cache_dispatched_observation(observation=observation)
     except redis_exceptions.ConnectionError as e:
         logger.error(
             f"ConnectionError while reading dispatched observations from Cache: {e}",
@@ -197,7 +197,7 @@ async def get_dispatched_observation(
         return observation
 
 
-def cache_dispatched_observation(
+async def cache_dispatched_observation(
     observation: gundi_schemas_v2.DispatchedObservation,
 ):
     try:
@@ -212,7 +212,7 @@ def cache_dispatched_observation(
             ExtraKeys.OutboundIntId: destination_id,
         }
         cache_key = f"dispatched_observation.{gundi_id}.{destination_id}"
-        _cache_db.setex(
+        await _cache_db.setex(
             name=cache_key,
             time=settings.DISPATCHED_OBSERVATIONS_CACHE_TTL,
             value=observation.json(),
