@@ -109,7 +109,82 @@ class SmartConnectEventDispatcher(SmartConnectDispatcherV2):
                 )
 
 
+########################################################################################
+# GUNDI V1
+########################################################################################
+
+
+class SmartConnectDispatcher:
+    def __init__(self, config: schemas.OutboundConfiguration):
+        self.config = config
+
+    # ToDo: Make this async
+    def clean_smart_request(self, item: SMARTRequest):
+
+        if hasattr(item.properties.smartAttributes, "observationUuid"):
+            if item.properties.smartAttributes.observationUuid in ("None", None):
+                item.properties.smartAttributes.observationUuid = str(uuid.uuid4())
+
+        if attachments := getattr(item.properties.smartAttributes, "attachments", None):
+            # if the file does not already have ".data" then download and assign it.
+            for file in attachments:
+                if file.data.startswith("gundi:storage"):
+                    stored_name = file.data.split(":")[-1]
+                    # ToDo: Make this async
+                    downloaded_file = get_cloud_storage().download(stored_name)
+                    downloaded_file_base64 = base64.b64encode(
+                        downloaded_file.getvalue()
+                    ).decode()
+                    file.data = downloaded_file_base64
+
+    async def send(self, item: dict):
+        item = SMARTCompositeRequest.parse_obj(item)
+
+        # orchestration order of operations
+        smartclient = AsyncSmartClient(
+            api=self.config.endpoint,
+            username=self.config.login,
+            password=self.config.password,
+            version=self.config.additional.get("version"),
+        )
+        for patrol_request in item.patrol_requests:
+            self.clean_smart_request(patrol_request)
+            await smartclient.post_smart_request(
+                json=patrol_request.json(exclude_none=True), ca_uuid=item.ca_uuid
+            )
+        for waypoint_request in item.waypoint_requests:
+            self.clean_smart_request(waypoint_request)
+
+            # Todo: Ask James what this is for.
+            if hasattr(
+                waypoint_request.properties.smartAttributes, "observationGroups"
+            ):
+                for (
+                    ogroup
+                ) in waypoint_request.properties.smartAttributes.observationGroups:
+                    for observation in ogroup.observations:
+                        if observation.observationUuid in (None, "None"):
+                            observation.observationUuid = None
+
+            payload = waypoint_request.json(exclude_none=True)
+            logger.debug("Waypoint payload.", extra={"payload": payload})
+
+            await smartclient.post_smart_request(json=payload, ca_uuid=item.ca_uuid)
+        for track_point_request in item.track_point_requests:
+            self.clean_smart_request(track_point_request)
+            await smartclient.post_smart_request(
+                json=track_point_request.json(exclude_none=True), ca_uuid=item.ca_uuid
+            )
+        return
+
+
+########################################################################################
+
 dispatcher_cls_by_type = {
+    # Gundi v1
+    schemas.v1.StreamPrefixEnum.geoevent: SmartConnectDispatcher,
+    schemas.v1.StreamPrefixEnum.earthranger_event: SmartConnectDispatcher,
+    schemas.v1.StreamPrefixEnum.earthranger_patrol: SmartConnectDispatcher,
     # Gundi v2
     schemas.v2.StreamPrefixEnum.event: SmartConnectEventDispatcher,
     # ToDo: Support Patrols and Observations

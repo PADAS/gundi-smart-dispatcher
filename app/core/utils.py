@@ -2,19 +2,26 @@
 import asyncio
 import base64
 import json
+from typing import Union
+
 import aiohttp
 import logging
 import httpx
 import backoff
 import aioredis
-from app import settings
+import aiohttp
+import logging
 from enum import Enum
 from gundi_core import schemas as gundi_schemas
 from gundi_core.schemas import v2 as gundi_schemas_v2
 from gundi_core.events import SystemEventBaseModel
-from gundi_client_v2 import GundiClient
 from redis import exceptions as redis_exceptions
 from gcloud.aio import pubsub
+from uuid import UUID
+from gundi_core import schemas
+from app import settings
+from gundi_client import PortalApi
+from gundi_client_v2 import GundiClient
 from . import settings, errors
 
 
@@ -34,6 +41,7 @@ def get_redis_db():
 
 _cache_ttl = settings.PORTAL_CONFIG_OBJECT_CACHE_TTL
 _cache_db = get_redis_db()
+_portal = PortalApi()
 connect_timeout, read_timeout = settings.DEFAULT_REQUESTS_TIMEOUT
 
 
@@ -132,6 +140,172 @@ async def get_integration_details(integration_id: str) -> gundi_schemas.v2.Integ
                     extra_dict=extra_dict,
                 )
             return integration
+
+
+@backoff.on_exception(backoff.expo, (httpx.HTTPError,), max_tries=5)
+async def get_inbound_integration_detail(
+    integration_id: Union[str, UUID],
+) -> schemas.IntegrationInformation:
+    if not integration_id:
+        raise ValueError("integration_id must not be None")
+
+    extra_dict = {
+        ExtraKeys.AttentionNeeded: True,
+        ExtraKeys.InboundIntId: str(integration_id),
+    }
+
+    cache_key = f"inbound_detail.{integration_id}"
+    cached = await _cache_db.get(cache_key)
+
+    if cached:
+        config = schemas.IntegrationInformation.parse_raw(cached)
+        logger.debug(
+            "Using cached inbound integration detail",
+            extra={**extra_dict, "integration_detail": config},
+        )
+        return config
+
+    logger.debug(f"Cache miss for inbound integration detai", extra={**extra_dict})
+
+    connect_timeout, read_timeout = settings.DEFAULT_REQUESTS_TIMEOUT
+    timeout_settings = aiohttp.ClientTimeout(
+        sock_connect=connect_timeout, sock_read=read_timeout
+    )
+    async with aiohttp.ClientSession(
+        timeout=timeout_settings, raise_for_status=True
+    ) as s:
+        try:
+            response = await _portal.get_inbound_integration(
+                session=s, integration_id=str(integration_id)
+            )
+        except aiohttp.ServerTimeoutError as e:
+            # ToDo: Try to get the url from the exception or from somewhere else
+            target_url = (
+                f"{settings.PORTAL_INBOUND_INTEGRATIONS_ENDPOINT}/{str(integration_id)}"
+            )
+            logger.error(
+                "Read Timeout",
+                extra={**extra_dict, ExtraKeys.Url: target_url},
+            )
+            raise errors.ReferenceDataError(f"Read Timeout for {target_url}")
+        except aiohttp.ClientResponseError as e:
+            target_url = str(e.request_info.url)
+            logger.exception(
+                "Portal returned bad response during request for inbound config detail",
+                extra={
+                    ExtraKeys.AttentionNeeded: True,
+                    ExtraKeys.InboundIntId: integration_id,
+                    ExtraKeys.Url: target_url,
+                    ExtraKeys.StatusCode: e.status,
+                },
+            )
+            raise errors.ReferenceDataError(
+                f"Request for InboundIntegration({integration_id})"
+            )
+        else:
+            try:
+                config = schemas.IntegrationInformation.parse_obj(response)
+            except Exception:
+                logger.error(
+                    f"Failed decoding response for InboundIntegration Detail",
+                    extra={**extra_dict, "resp_text": response},
+                )
+                raise errors.ReferenceDataError(
+                    "Failed decoding response for InboundIntegration Detail"
+                )
+            else:
+                if config:  # don't cache empty response
+                    await _cache_db.setex(cache_key, _cache_ttl, config.json())
+                return config
+
+
+@backoff.on_exception(backoff.expo, (httpx.HTTPError,), max_tries=5)
+async def get_outbound_config_detail(
+    outbound_id: Union[str, UUID],
+) -> schemas.OutboundConfiguration:
+    if not outbound_id:
+        raise ValueError("integration_id must not be None")
+
+    extra_dict = {
+        ExtraKeys.AttentionNeeded: True,
+        ExtraKeys.OutboundIntId: str(outbound_id),
+    }
+
+    cache_key = f"outbound_detail.{outbound_id}"
+    cached = await _cache_db.get(cache_key)
+
+    if cached:
+        config = schemas.OutboundConfiguration.parse_raw(cached)
+        logger.debug(
+            "Using cached outbound integration detail",
+            extra={
+                **extra_dict,
+                ExtraKeys.AttentionNeeded: False,
+                "outbound_detail": config,
+            },
+        )
+        return config
+
+    logger.debug(f"Cache miss for outbound integration detail", extra={**extra_dict})
+
+    connect_timeout, read_timeout = settings.DEFAULT_REQUESTS_TIMEOUT
+    timeout_settings = aiohttp.ClientTimeout(
+        sock_connect=connect_timeout, sock_read=read_timeout
+    )
+    async with aiohttp.ClientSession(
+        timeout=timeout_settings, raise_for_status=True
+    ) as s:
+        try:
+            response = await _portal.get_outbound_integration(
+                session=s, integration_id=str(outbound_id)
+            )
+        except aiohttp.ServerTimeoutError as e:
+            target_url = (
+                f"{settings.PORTAL_OUTBOUND_INTEGRATIONS_ENDPOINT}/{str(outbound_id)}"
+            )
+            logger.error(
+                "Read Timeout",
+                extra={**extra_dict, ExtraKeys.Url: target_url},
+            )
+            raise errors.ReferenceDataError(f"Read Timeout for {target_url}")
+        except aiohttp.ClientConnectionError as e:
+            target_url = str(settings.PORTAL_OUTBOUND_INTEGRATIONS_ENDPOINT)
+            logger.error(
+                "Connection Error",
+                extra={**extra_dict, ExtraKeys.Url: target_url},
+            )
+            raise errors.ReferenceDataError(
+                f"Failed to connect to the portal at {target_url}, {e}"
+            )
+        except aiohttp.ClientResponseError as e:
+            target_url = str(e.request_info.url)
+            logger.exception(
+                "Portal returned bad response during request for outbound config detail",
+                extra={
+                    ExtraKeys.AttentionNeeded: True,
+                    ExtraKeys.OutboundIntId: outbound_id,
+                    ExtraKeys.Url: target_url,
+                    ExtraKeys.StatusCode: e.status,
+                },
+            )
+            raise errors.ReferenceDataError(
+                f"Request for OutboundIntegration({outbound_id}) returned bad response"
+            )
+        else:
+            try:
+                config = schemas.OutboundConfiguration.parse_obj(response)
+            except Exception:
+                logger.error(
+                    f"Failed decoding response for Outbound Integration Detail",
+                    extra={**extra_dict, "resp_text": response},
+                )
+                raise errors.ReferenceDataError(
+                    "Failed decoding response for Outbound Integration Detail"
+                )
+            else:
+                if config:  # don't cache empty response
+                    await _cache_db.setex(cache_key, _cache_ttl, config.json())
+                return config
 
 
 async def get_dispatched_observation(

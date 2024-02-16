@@ -12,7 +12,10 @@ from app.core.utils import (
     get_integration_details,
     cache_dispatched_observation,
     publish_event,
+    get_outbound_config_detail,
+    get_inbound_integration_detail,
 )
+from gundi_core.schemas import v1 as gundi_schemas_v1
 from gundi_core.schemas import v2 as gundi_schemas_v2
 from gundi_core import events as system_events
 from app.core.errors import DispatcherException, ReferenceDataError, TooManyRequests
@@ -65,7 +68,7 @@ async def dispatch_transformed_observation_v2(
         dispatcher_cls = dispatchers.dispatcher_cls_by_type[stream_type]
     except KeyError as e:
         error_msg = f"No dispatcher found for stream type {stream_type}"
-        logger.error(
+        logger.exception(
             error_msg,
             extra={
                 **extra_dict,
@@ -80,7 +83,7 @@ async def dispatch_transformed_observation_v2(
             )
             result = await dispatcher.send(observation)
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Exception occurred dispatching observation",
                 extra={
                     **extra_dict,
@@ -129,7 +132,6 @@ async def send_observation_to_dead_letter_topic(transformed_observation, attribu
     with tracing.tracer.start_as_current_span(
         "send_message_to_dead_letter_topic", kind=SpanKind.CLIENT
     ) as current_span:
-
         print(f"Forwarding observation to dead letter topic: {transformed_observation}")
         # Publish to another PubSub topic
         connect_timeout, read_timeout = settings.DEFAULT_REQUESTS_TIMEOUT
@@ -179,7 +181,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
             error_msg = (
                 f"Stream type `{stream_type}` is not supported by this dispatcher."
             )
-            logger.error(
+            logger.exception(
                 error_msg,
                 extra={
                     ExtraKeys.AttentionNeeded: True,
@@ -306,6 +308,208 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                 raise e
 
 
+############################################################################################################
+# GUNDI v1
+############################################################################################################
+async def dispatch_transformed_observation_v1(
+    stream_type: str, outbound_config_id: str, inbound_int_id: str, observation
+):
+    extra_dict = {
+        ExtraKeys.OutboundIntId: outbound_config_id,
+        ExtraKeys.InboundIntId: inbound_int_id,
+        ExtraKeys.Observation: observation,
+        ExtraKeys.StreamType: stream_type,
+    }
+
+    if not outbound_config_id:
+        error_msg = (
+            f"No destination set for the observation {observation}. Discarded.",
+        )
+        logger.error(
+            error_msg,
+            extra=extra_dict,
+        )
+        raise DispatcherException(error_msg)
+
+    # Get details about the destination
+    config = await get_outbound_config_detail(outbound_config_id)
+    inbound_integration = await get_inbound_integration_detail(inbound_int_id)
+    provider_key = inbound_integration.provider
+
+    if not config:
+        error_msg = f"No destination config details found for {outbound_config_id}"
+        logger.error(
+            error_msg,
+            extra={**extra_dict, ExtraKeys.AttentionNeeded: True},
+        )
+        raise ReferenceDataError(error_msg)
+
+    try:  # Select the dispatcher
+        dispatcher_cls = dispatchers.dispatcher_cls_by_type[stream_type]
+    except KeyError as e:
+        error_msg = f"No dispatcher found for stream type {stream_type}"
+        logger.exception(
+            error_msg,
+            extra={
+                **extra_dict,
+                ExtraKeys.AttentionNeeded: True,
+            },
+        )
+        raise DispatcherException(error_msg)
+    else:  # Send the observation to the destination
+        try:
+            dispatcher = dispatcher_cls(config)
+            result = await dispatcher.send(observation)
+        except Exception as e:
+            logger.exception(
+                f"Exception occurred dispatching observation",
+                extra={
+                    **extra_dict,
+                    ExtraKeys.Provider: provider_key,
+                    ExtraKeys.AttentionNeeded: True,
+                },
+            )
+            raise e
+
+
+async def process_transformed_observation_v1(transformed_message, attributes):
+    with tracing.tracer.start_as_current_span(
+        "smart_dispatcher.process_transformed_observation", kind=SpanKind.CLIENT
+    ) as current_span:
+        current_span.add_event(
+            name="smart_dispatcher.transformed_observation_received_at_dispatcher"
+        )
+        observation_type = attributes.get("observation_type")
+        if observation_type not in dispatchers.dispatcher_cls_by_type.keys():
+            error_msg = (
+                f"Stream type `{observation_type}` is not supported by this dispatcher."
+            )
+            logger.error(
+                error_msg,
+                extra={
+                    ExtraKeys.AttentionNeeded: True,
+                },
+            )
+            raise DispatcherException(
+                f"Exception occurred dispatching observation: {error_msg}"
+            )
+
+        provider_key = transformed_message.pop(
+            "provider_key", attributes.get("provider_key")
+        )
+        gundi_id = attributes.get("gundi_id")
+        related_to = attributes.get("related_to")
+        device_id = attributes.get("device_id")
+        integration_id = attributes.get("integration_id")
+        outbound_config_id = attributes.get("outbound_config_id")
+        logger.debug(f"transformed_observation: {transformed_message}")
+        logger.info(
+            f"Received transformed observation",
+            extra={
+                ExtraKeys.DeviceId: device_id,
+                ExtraKeys.InboundIntId: integration_id,
+                ExtraKeys.Provider: provider_key,
+                ExtraKeys.OutboundIntId: outbound_config_id,
+                ExtraKeys.StreamType: observation_type,
+                ExtraKeys.GundiId: gundi_id,
+                ExtraKeys.RelatedTo: related_to,
+            },
+        )
+        current_span.set_attribute("transformed_message", str(transformed_message))
+        current_span.set_attribute("environment", settings.TRACE_ENVIRONMENT)
+        current_span.set_attribute("service", "cdip-routing")
+
+        logger.debug(f"transformed_observation: {transformed_message}")
+        logger.info(
+            "received transformed observation",
+            extra={
+                ExtraKeys.DeviceId: device_id,
+                ExtraKeys.InboundIntId: integration_id,
+                ExtraKeys.OutboundIntId: outbound_config_id,
+                ExtraKeys.StreamType: observation_type,
+            },
+        )
+
+        logger.info(
+            "Dispatching for transformed observation.",
+            extra={
+                ExtraKeys.InboundIntId: integration_id,
+                ExtraKeys.OutboundIntId: outbound_config_id,
+                ExtraKeys.StreamType: observation_type,
+            },
+        )
+        with tracing.tracer.start_as_current_span(
+            "smart_dispatcher.dispatch_transformed_observation", kind=SpanKind.CLIENT
+        ) as subspan:
+            try:
+                await dispatch_transformed_observation_v1(
+                    observation_type,
+                    outbound_config_id,
+                    integration_id,
+                    transformed_message,
+                )
+                subspan.set_attribute("is_dispatched_successfully", True)
+                subspan.set_attribute("destination_id", str(outbound_config_id))
+                subspan.add_event(
+                    name="smart_dispatcher.observation_dispatched_successfully"
+                )
+            except (DispatcherException, ReferenceDataError) as e:
+                error_msg = f"External error occurred processing transformed observation {gundi_id}: {e}"
+                logger.exception(
+                    error_msg,
+                    extra={
+                        ExtraKeys.AttentionNeeded: True,
+                        ExtraKeys.DeviceId: device_id,
+                        ExtraKeys.InboundIntId: integration_id,
+                        ExtraKeys.OutboundIntId: outbound_config_id,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.StreamType: observation_type,
+                    },
+                )
+                subspan.set_attribute("error", error_msg)
+                # Raise the exception so the message is retried later by GCP
+                raise e
+            except TooManyRequests as e:
+                error_msg = f"Throttling request {gundi_id}: {e}"
+                logger.exception(
+                    error_msg,
+                    extra={
+                        ExtraKeys.AttentionNeeded: True,
+                        ExtraKeys.DeviceId: device_id,
+                        ExtraKeys.InboundIntId: integration_id,
+                        ExtraKeys.OutboundIntId: outbound_config_id,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.StreamType: stream_type,
+                    },
+                )
+                subspan.set_attribute("is_throttled", True)
+                subspan.add_event(name="smart_dispatcher.observation_throttled")
+                # Raise the exception so the message is retried later by GCP
+                raise e
+            except Exception as e:
+                error_msg = (
+                    f"Error occurred processing transformed observation {gundi_id}: {e}"
+                )
+                logger.exception(
+                    error_msg,
+                    extra={
+                        ExtraKeys.AttentionNeeded: True,
+                        ExtraKeys.DeadLetter: True,
+                        ExtraKeys.DeviceId: device_id,
+                        ExtraKeys.GundiId: gundi_id,
+                        ExtraKeys.InboundIntId: integration_id,
+                        ExtraKeys.OutboundIntId: outbound_config_id,
+                        ExtraKeys.StreamType: stream_type,
+                    },
+                )
+                subspan.set_attribute("error", error_msg)
+                # Raise the exception so the message is retried later by GCP
+                raise e
+
+
+############################################################################################################
+
+
 def is_too_old(timestamp):
     if not timestamp:
         return False
@@ -329,17 +533,6 @@ async def process_request(request):
     with tracing.tracer.start_as_current_span(
         "smart_dispatcher.process_request", kind=SpanKind.CLIENT
     ) as current_span:
-        if attributes and attributes.get("gundi_version", "v1") == "v1":
-            logger.warning(
-                f"Message discarded. Messages from Gundi v1 are not supported by this dispatcher."
-            )
-            await send_observation_to_dead_letter_topic(
-                transformed_observation, attributes
-            )
-            return {
-                "status": "discarded",
-                "reason": "Gundi v1 messages are not supported",
-            }
         if is_too_old(timestamp=request.headers.get("ce-time")):
             logger.warning(
                 f"Message discarded. The message is too old or the retry time limit has been reached."
@@ -351,5 +544,23 @@ async def process_request(request):
                 "status": "discarded",
                 "reason": "Message is too old or the retry time limit has been reach",
             }
-        await process_transformed_observation_v2(transformed_observation, attributes)
+        if version := attributes.get("gundi_version", "v1") == "v1":
+            await process_transformed_observation_v1(
+                transformed_observation, attributes
+            )
+        elif version == "v2":
+            await process_transformed_observation_v2(
+                transformed_observation, attributes
+            )
+        else:
+            logger.warning(
+                f"Message discarded. Version '{version}' is not supported by this dispatcher."
+            )
+            await send_observation_to_dead_letter_topic(
+                transformed_observation, attributes
+            )
+            return {
+                "status": "discarded",
+                "reason": f"Gundi '{version}' messages are not supported",
+            }
         return {"status": "processed"}

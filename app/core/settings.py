@@ -7,6 +7,16 @@ LOGGING_LEVEL = env.str("LOGGING_LEVEL", "INFO")
 
 DEFAULT_REQUESTS_TIMEOUT = (10, 20)  # Connect, Read
 
+CDIP_API_ENDPOINT = env.str("CDIP_API_ENDPOINT", None)
+CDIP_ADMIN_ENDPOINT = env.str("CDIP_ADMIN_ENDPOINT", None)
+PORTAL_API_ENDPOINT = f"{CDIP_ADMIN_ENDPOINT}/api/v1.0"
+PORTAL_OUTBOUND_INTEGRATIONS_ENDPOINT = (
+    f"{PORTAL_API_ENDPOINT}/integrations/outbound/configurations"
+)
+PORTAL_INBOUND_INTEGRATIONS_ENDPOINT = (
+    f"{PORTAL_API_ENDPOINT}/integrations/inbound/configurations"
+)
+
 # Settings for caching admin portal request/responses
 REDIS_HOST = env.str("REDIS_HOST", "localhost")
 REDIS_PORT = env.int("REDIS_PORT", 6379)
