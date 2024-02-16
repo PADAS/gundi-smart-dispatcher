@@ -544,7 +544,7 @@ async def process_request(request):
                 "status": "discarded",
                 "reason": "Message is too old or the retry time limit has been reach",
             }
-        if version := attributes.get("gundi_version", "v1") == "v1":
+        if (version := attributes.get("gundi_version", "v1")) == "v1":
             await process_transformed_observation_v1(
                 transformed_observation, attributes
             )
