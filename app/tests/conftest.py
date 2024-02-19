@@ -224,6 +224,28 @@ def pubsub_cloud_event_headers():
 
 
 @pytest.fixture
+def er_patrol_v1_cloud_event_payload():
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return {
+        "message": {
+            "attributes": {
+                "observation_type": "er_patrol",
+                "device_id": "9feb3205-26d2-467b-8c82-dbefa65f2a33",
+                "outbound_config_id": "38ebbae6-2535-43f9-be88-96f9daec83f3",
+                "integration_id": "c25a53f6-e206-43dd-8f62-a3759565ae3d",
+                "tracing_context": "{}",
+            },
+            "data": "eyJjYV91dWlkIjogIjE2OTM2MWQwLTYyYjgtNDExZC1hOGU2LTAxOTgyMzgwNTAxNiIsICJwYXRyb2xfcmVxdWVzdHMiOiBbeyJ0eXBlIjogIkZlYXR1cmUiLCAiZ2VvbWV0cnkiOiB7ImNvb3JkaW5hdGVzIjogWy0xMDMuNDQ0NTAzMSwgMjAuNjg3NTI0NF19LCAicHJvcGVydGllcyI6IHsiZGF0ZVRpbWUiOiAiMjAyNC0wMi0xOVQxMDoxODo1NyIsICJzbWFydERhdGFUeXBlIjogInBhdHJvbCIsICJzbWFydEZlYXR1cmVUeXBlIjogInBhdHJvbC9uZXciLCAic21hcnRBdHRyaWJ1dGVzIjogeyJvYnNlcnZhdGlvbkdyb3VwcyI6IG51bGwsICJwYXRyb2xVdWlkIjogIjlmZWIzMjA1LTI2ZDItNDY3Yi04YzgyLWRiZWZhNjVmMmEzMyIsICJwYXRyb2xMZWdVdWlkIjogImE5OGE2YjBmLWY1NTUtNDQzYi05YmNmLTAxZDcyMTQ1MTM1OCIsICJwYXRyb2xJZCI6ICJFUi0xOSIsICJpbmNpZGVudElkIjogbnVsbCwgImluY2lkZW50VXVpZCI6IG51bGwsICJ0ZWFtIjogImNvbW11bml0eXRlYW0xIiwgIm9iamVjdGl2ZSI6IG51bGwsICJjb21tZW50IjogIlxuSW1wb3J0ZWQ6IDIwMjQtMDItMTlUMTA6MjE6NDYuMDk0NzYxLTA2OjAwIiwgImlzQXJtZWQiOiAiZmFsc2UiLCAidHJhbnNwb3J0VHlwZSI6ICJmb290IiwgIm1hbmRhdGUiOiAiZm9sbG93dXAiLCAibnVtYmVyIjogbnVsbCwgIm1lbWJlcnMiOiBbIjViNGI2ODYyODEzMzQ1NzA4NjUyNDFlNTI5ZWZhY2ZhIl0sICJsZWFkZXIiOiAiNWI0YjY4NjI4MTMzNDU3MDg2NTI0MWU1MjllZmFjZmEiLCAiYXR0YWNobWVudHMiOiBudWxsfX19XSwgIndheXBvaW50X3JlcXVlc3RzIjogW3sidHlwZSI6ICJGZWF0dXJlIiwgImdlb21ldHJ5IjogeyJjb29yZGluYXRlcyI6IFstMTAzLjQ0NDUxNzcsIDIwLjY4NzUyNDZdfSwgInByb3BlcnRpZXMiOiB7ImRhdGVUaW1lIjogIjIwMjQtMDItMTlUMTA6MTk6MzYiLCAic21hcnREYXRhVHlwZSI6ICJwYXRyb2wiLCAic21hcnRGZWF0dXJlVHlwZSI6ICJ3YXlwb2ludC9uZXciLCAic21hcnRBdHRyaWJ1dGVzIjogeyJvYnNlcnZhdGlvbkdyb3VwcyI6IFt7Im9ic2VydmF0aW9ucyI6IFt7Im9ic2VydmF0aW9uVXVpZCI6ICJlNGQxMWI2MS0yNjNhLTQ0M2QtOGM3ZC1iOGNhNWI1NDNjNGQiLCAiY2F0ZWdvcnkiOiAiaHVtYW5hY3Rpdml0eS50aW1iZXJvYnNlcnZhdGlvbiIsICJhdHRyaWJ1dGVzIjogeyJ2b2x1bWVtMyI6IDEsICJudW1iZXJvZnRpbWJlciI6IDEsICJ0aW1iZXJ0cmVlc3BlY2llcyI6ICJjbGFzczEuY2hoZWtyYW0ifX1dfV0sICJwYXRyb2xVdWlkIjogIjlmZWIzMjA1LTI2ZDItNDY3Yi04YzgyLWRiZWZhNjVmMmEzMyIsICJwYXRyb2xMZWdVdWlkIjogImE5OGE2YjBmLWY1NTUtNDQzYi05YmNmLTAxZDcyMTQ1MTM1OCIsICJwYXRyb2xJZCI6IG51bGwsICJpbmNpZGVudElkIjogIkVSLTQ5NTUzIiwgImluY2lkZW50VXVpZCI6ICJlNGQxMWI2MS0yNjNhLTQ0M2QtOGM3ZC1iOGNhNWI1NDNjNGQiLCAidGVhbSI6IG51bGwsICJvYmplY3RpdmUiOiBudWxsLCAiY29tbWVudCI6ICJSZXBvcnQ6IGh1bWFuYWN0aXZpdHlfdGltYmVyb2JzZXJ2YXRpb25cbkltcG9ydGVkOiAyMDI0LTAyLTE5VDEwOjIxOjQ2LjA5Nzc4Ni0wNjowMCIsICJpc0FybWVkIjogbnVsbCwgInRyYW5zcG9ydFR5cGUiOiBudWxsLCAibWFuZGF0ZSI6IG51bGwsICJudW1iZXIiOiBudWxsLCAibWVtYmVycyI6IG51bGwsICJsZWFkZXIiOiBudWxsLCAiYXR0YWNobWVudHMiOiBbXX19fSwgeyJ0eXBlIjogIkZlYXR1cmUiLCAiZ2VvbWV0cnkiOiB7ImNvb3JkaW5hdGVzIjogWy0xMDMuNDQ0NTE3NywgMjAuNjg3NTI0Nl19LCAicHJvcGVydGllcyI6IHsiZGF0ZVRpbWUiOiAiMjAyNC0wMi0xOVQxMDoyMDoxMiIsICJzbWFydERhdGFUeXBlIjogInBhdHJvbCIsICJzbWFydEZlYXR1cmVUeXBlIjogIndheXBvaW50L25ldyIsICJzbWFydEF0dHJpYnV0ZXMiOiB7Im9ic2VydmF0aW9uR3JvdXBzIjogW3sib2JzZXJ2YXRpb25zIjogW3sib2JzZXJ2YXRpb25VdWlkIjogIjU5Y2FkMmMxLWE5MzktNDk2YS05YzFmLTcwYWQ5MTUzZTcxOCIsICJjYXRlZ29yeSI6ICJodW1hbmFjdGl2aXR5LnRpbWJlcm9ic2VydmF0aW9uIiwgImF0dHJpYnV0ZXMiOiB7Im51bWJlcm9mdGltYmVyIjogMSwgInRpbWJlcnRyZWVzcGVjaWVzIjogImNsYXNzMS5kb3VuZ2NoYWVtIn19XX1dLCAicGF0cm9sVXVpZCI6ICI5ZmViMzIwNS0yNmQyLTQ2N2ItOGM4Mi1kYmVmYTY1ZjJhMzMiLCAicGF0cm9sTGVnVXVpZCI6ICJhOThhNmIwZi1mNTU1LTQ0M2ItOWJjZi0wMWQ3MjE0NTEzNTgiLCAicGF0cm9sSWQiOiBudWxsLCAiaW5jaWRlbnRJZCI6ICJFUi00OTU1NCIsICJpbmNpZGVudFV1aWQiOiAiNTljYWQyYzEtYTkzOS00OTZhLTljMWYtNzBhZDkxNTNlNzE4IiwgInRlYW0iOiBudWxsLCAib2JqZWN0aXZlIjogbnVsbCwgImNvbW1lbnQiOiAiUmVwb3J0OiBodW1hbmFjdGl2aXR5X3RpbWJlcm9ic2VydmF0aW9uXG5JbXBvcnRlZDogMjAyNC0wMi0xOVQxMDoyMTo0Ni4wOTkyODktMDY6MDAiLCAiaXNBcm1lZCI6IG51bGwsICJ0cmFuc3BvcnRUeXBlIjogbnVsbCwgIm1hbmRhdGUiOiBudWxsLCAibnVtYmVyIjogbnVsbCwgIm1lbWJlcnMiOiBudWxsLCAibGVhZGVyIjogbnVsbCwgImF0dGFjaG1lbnRzIjogW119fX1dLCAidHJhY2tfcG9pbnRfcmVxdWVzdHMiOiBbXX0=",  # pragma: allowlist secret
+            "messageId": "9155786613739819",
+            "message_id": "9155786613739819",
+            "publishTime": timestamp,
+            "publish_time": timestamp,
+        },
+        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+    }
+
+
+@pytest.fixture
 def geoevent_v1_cloud_event_payload():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return {

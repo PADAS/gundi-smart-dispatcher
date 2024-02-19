@@ -228,3 +228,33 @@ async def test_process_er_event_v1_with_attachment_successfully(
     # Check that the report was sent o SMART
     assert mock_smartclient_class.called
     assert mock_smartclient_class.return_value.post_smart_request.called
+
+
+@pytest.mark.asyncio
+async def test_process_er_patrol_v1_successfully(
+    mocker,
+    mock_cache,
+    mock_gundi_client_v1,
+    mock_smartclient_class,
+    mock_pubsub_client,
+    pubsub_cloud_event_headers,
+    er_patrol_v1_cloud_event_payload,
+    observation_delivered_pubsub_message,
+):
+    # Mock external dependencies
+    mocker.patch("app.core.utils._cache_db", mock_cache)
+    mocker.patch("app.services.dispatchers._redis_client", mock_cache)
+    mocker.patch("app.core.utils._portal", mock_gundi_client_v1)
+    mocker.patch("app.services.dispatchers.AsyncSmartClient", mock_smartclient_class)
+    mocker.patch("app.core.utils.pubsub", mock_pubsub_client)
+    response = api_client.post(
+        "/",
+        headers=pubsub_cloud_event_headers,
+        json=er_patrol_v1_cloud_event_payload,
+    )
+    assert response.status_code == 200
+    # Check that the report was sent o SMART
+    assert mock_smartclient_class.called
+    assert mock_smartclient_class.return_value.post_smart_request.called
+    # Check that the trace was written to redis db
+    assert mock_cache.setex.called
