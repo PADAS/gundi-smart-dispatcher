@@ -118,7 +118,7 @@ async def dispatch_transformed_observation_v2(
                 destination_id=destination_id,
                 delivered_at=datetime.now(timezone.utc),  # UTC
             )
-            cache_dispatched_observation(observation=dispatched_observation)
+            await cache_dispatched_observation(observation=dispatched_observation)
             # Emit events for the portal and other interested services (EDA)
             await publish_event(
                 event=system_events.ObservationDelivered(
@@ -479,7 +479,7 @@ async def process_transformed_observation_v1(transformed_message, attributes):
                         ExtraKeys.InboundIntId: integration_id,
                         ExtraKeys.OutboundIntId: outbound_config_id,
                         ExtraKeys.GundiId: gundi_id,
-                        ExtraKeys.StreamType: stream_type,
+                        ExtraKeys.StreamType: observation_type,
                     },
                 )
                 subspan.set_attribute("is_throttled", True)
@@ -499,7 +499,7 @@ async def process_transformed_observation_v1(transformed_message, attributes):
                         ExtraKeys.GundiId: gundi_id,
                         ExtraKeys.InboundIntId: integration_id,
                         ExtraKeys.OutboundIntId: outbound_config_id,
-                        ExtraKeys.StreamType: stream_type,
+                        ExtraKeys.StreamType: observation_type,
                     },
                 )
                 subspan.set_attribute("error", error_msg)

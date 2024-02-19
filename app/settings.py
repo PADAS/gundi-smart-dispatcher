@@ -14,7 +14,7 @@ DEFAULT_LOGGING = {
         "console": {
             "level": LOGGING_LEVEL,
             "class": "logging.StreamHandler",
-            "stream": sys.stdout
+            "stream": sys.stdout,
         },
     },
     "loggers": {
@@ -33,6 +33,7 @@ TRACE_ENVIRONMENT = env.str("TRACE_ENVIRONMENT", "dev")
 
 # GCP related settings
 GCP_PROJECT_ID = env.str("GCP_PROJECT_ID", "cdip-78ca")
+BUCKET_NAME = env.str("BUCKET_NAME", "cdip-dev-cameratrap")
 
 KEYCLOAK_ALGORITHMS = env.list("KEYCLOAK_ALGORITHMS", ["RS256", "HS256"])
 KEYCLOAK_AUDIENCE = env.str("KEYCLOAK_AUDIENCE", None)
