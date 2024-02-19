@@ -140,7 +140,7 @@ class SmartConnectDispatcher:
 
     async def send(self, item: dict):
         item = SMARTCompositeRequest.parse_obj(item)
-
+        base_url = urlparse(self.config.endpoint).hostname
         # orchestration order of operations
         smartclient = AsyncSmartClient(
             api=self.config.endpoint,
@@ -150,9 +150,10 @@ class SmartConnectDispatcher:
         )
         for patrol_request in item.patrol_requests:
             await self.clean_smart_request(patrol_request)
-            await smartclient.post_smart_request(
-                json=patrol_request.json(exclude_none=True), ca_uuid=item.ca_uuid
-            )
+            async with RateLimiterSemaphore(redis_client=_redis_client, url=base_url):
+                await smartclient.post_smart_request(
+                    json=patrol_request.json(exclude_none=True), ca_uuid=item.ca_uuid
+                )
         for waypoint_request in item.waypoint_requests:
             await self.clean_smart_request(waypoint_request)
 
@@ -169,13 +170,15 @@ class SmartConnectDispatcher:
 
             payload = waypoint_request.json(exclude_none=True)
             logger.debug("Waypoint payload.", extra={"payload": payload})
-
-            await smartclient.post_smart_request(json=payload, ca_uuid=item.ca_uuid)
+            async with RateLimiterSemaphore(redis_client=_redis_client, url=base_url):
+                await smartclient.post_smart_request(json=payload, ca_uuid=item.ca_uuid)
         for track_point_request in item.track_point_requests:
             await self.clean_smart_request(track_point_request)
-            await smartclient.post_smart_request(
-                json=track_point_request.json(exclude_none=True), ca_uuid=item.ca_uuid
-            )
+            async with RateLimiterSemaphore(redis_client=_redis_client, url=base_url):
+                await smartclient.post_smart_request(
+                    json=track_point_request.json(exclude_none=True),
+                    ca_uuid=item.ca_uuid,
+                )
         return
 
 
