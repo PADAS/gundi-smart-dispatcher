@@ -10,8 +10,8 @@ from app.services.process_messages import process_request
 # For running behind a proxy, we'll want to configure the root path for OpenAPI browser.
 root_path = os.environ.get("ROOT_PATH", "")
 app = FastAPI(
-    title="Gundi Integration Actions Execution Service",
-    description="API to trigger actions against third-party systems",
+    title="Gundi SMART Watch Dispatcher",
+    description="Service that sends data to SMART Connect",
     version="1",
 )
 

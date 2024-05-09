@@ -10,16 +10,27 @@ api_client = TestClient(app)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "event_headers,expected",
+    [
+        ("pubsub_cloud_event_headers", True),
+        ("pubsub_cloud_event_headers_with_future_timestamp", True),
+        ("pubsub_cloud_event_headers_with_old_timestamp", False),
+    ],
+)
 async def test_process_event_v2_successfully(
+    request,
+    expected,
     mocker,
     mock_cache,
     mock_gundi_client_v2_class,
     mock_smartclient_class,
     mock_pubsub_client,
-    pubsub_cloud_event_headers,
+    event_headers,
     geoevent_v2_cloud_event_payload,
     observation_delivered_pubsub_message,
 ):
+    event_headers = request.getfixturevalue(event_headers)
     # Mock external dependencies
     mocker.patch("app.core.utils._cache_db", mock_cache)
     mocker.patch("app.services.dispatchers._redis_client", mock_cache)
@@ -28,24 +39,25 @@ async def test_process_event_v2_successfully(
     mocker.patch("app.core.utils.pubsub", mock_pubsub_client)
     response = api_client.post(
         "/",
-        headers=pubsub_cloud_event_headers,
+        headers=event_headers,
         json=geoevent_v2_cloud_event_payload,
     )
     assert response.status_code == 200
     # Check that the report was sent o SMART
-    assert mock_smartclient_class.called
-    assert mock_smartclient_class.return_value.post_smart_request.called
+    assert mock_smartclient_class.called == expected
+    assert mock_smartclient_class.return_value.post_smart_request.called == expected
     # Check that the trace was written to redis db
-    assert mock_cache.setex.called
+    assert mock_cache.setex.called == expected
     # Check that the right event was published to the right pubsub topic
-    assert mock_pubsub_client.PublisherClient.called
-    assert mock_pubsub_client.PubsubMessage.called
-    assert mock_pubsub_client.PublisherClient.called
-    assert mock_pubsub_client.PublisherClient.return_value.publish.called
-    mock_pubsub_client.PublisherClient.return_value.publish.assert_any_call(
-        f"projects/{settings.GCP_PROJECT_ID}/topics/{settings.DISPATCHER_EVENTS_TOPIC}",
-        [observation_delivered_pubsub_message],
-    )
+    assert mock_pubsub_client.PublisherClient.called == expected
+    assert mock_pubsub_client.PubsubMessage.called == expected
+    assert mock_pubsub_client.PublisherClient.called == expected
+    assert mock_pubsub_client.PublisherClient.return_value.publish.called == expected
+    if mock_pubsub_client.PublisherClient.return_value.publish.called:
+        mock_pubsub_client.PublisherClient.return_value.publish.assert_any_call(
+            f"projects/{settings.GCP_PROJECT_ID}/topics/{settings.DISPATCHER_EVENTS_TOPIC}",
+            [observation_delivered_pubsub_message],
+        )
 
 
 @pytest.mark.asyncio
