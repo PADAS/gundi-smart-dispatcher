@@ -535,10 +535,12 @@ async def process_request(request):
     with tracing.tracer.start_as_current_span(
         "smart_dispatcher.process_request", kind=SpanKind.CLIENT
     ) as current_span:
-        if is_too_old(timestamp=request.headers.get("ce-time")):
+        timestamp = request.headers.get("ce-time")
+        if is_too_old(timestamp=timestamp):
             logger.warning(
-                f"Message discarded. The message is too old or the retry time limit has been reached."
+                f"Message discarded (timestamp = {timestamp}). The message is too old or the retry time limit has been reached."
             )
+            current_span.set_attribute("is_too_old", True)
             await send_observation_to_dead_letter_topic(
                 transformed_observation, attributes
             )
