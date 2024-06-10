@@ -59,7 +59,8 @@ class SmartConnectDispatcherV2(DispatcherV2, ABC):
             if url_parse.port
             else url_parse.hostname
         )
-        path = url_parse.path or "server"
+        path = url_parse.path or "/server"
+        path = path.replace("//", "/")
         api_url = (
             getattr(auth_config, "endpoint", None)
             or f"{url_parse.scheme}://{domain}{path}"
