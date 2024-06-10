@@ -62,7 +62,7 @@ class SmartConnectDispatcherV2(DispatcherV2, ABC):
         path = url_parse.path or "server"
         api_url = (
             getattr(auth_config, "endpoint", None)
-            or f"{url_parse.scheme}://{domain}/{path}"
+            or f"{url_parse.scheme}://{domain}{path}"
         )
         self.smart_client = AsyncSmartClient(
             api=api_url,
