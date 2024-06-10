@@ -54,9 +54,19 @@ class SmartConnectDispatcherV2(DispatcherV2, ABC):
                 f"Authentication settings for integration {str(integration.id)} are missing. Please fix the integration setup in the portal."
             )
         self.auth_config = schemas.v2.SMARTAuthActionConfig.parse_obj(auth_config.data)
+        domain = (
+            f"{url_parse.hostname}:{url_parse.port}"
+            if url_parse.port
+            else url_parse.hostname
+        )
+        path = url_parse.path or "/server"
+        path = path.replace("//", "/")
+        api_url = (
+            getattr(auth_config, "endpoint", None)
+            or f"{url_parse.scheme}://{domain}{path}"
+        )
         self.smart_client = AsyncSmartClient(
-            api=f"{url_parse.scheme}://{url_parse.hostname}/server"
-            or auth_config.endpoint,
+            api=api_url,
             username=self.auth_config.login,
             password=self.auth_config.password,
             version=self.auth_config.version,
