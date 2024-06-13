@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -5,7 +6,7 @@ import aiohttp
 from datetime import datetime, timezone, timedelta
 from gcloud.aio import pubsub
 from opentelemetry.trace import SpanKind
-from app.core import settings
+from app.core import settings, utils
 from app.core.utils import (
     extract_fields_from_message,
     ExtraKeys,
@@ -284,6 +285,10 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                 )
                 subspan.set_attribute("is_throttled", True)
                 subspan.add_event(name="smart_dispatcher.observation_throttled")
+                retry_jitter = utils.get_rate_limit_retry_jitter()
+                subspan.set_attribute("retry_jitter", retry_jitter)
+                # Wait a ramdom time before retrying
+                await asyncio.sleep(retry_jitter)
                 # Raise the exception so the function execution is marked as failed and retried later
                 raise e
             except Exception as e:
@@ -484,6 +489,10 @@ async def process_transformed_observation_v1(transformed_message, attributes):
                 )
                 subspan.set_attribute("is_throttled", True)
                 subspan.add_event(name="smart_dispatcher.observation_throttled")
+                retry_jitter = utils.get_rate_limit_retry_jitter()
+                subspan.set_attribute("retry_jitter", retry_jitter)
+                # Wait a ramdom time before retrying
+                await asyncio.sleep(retry_jitter)
                 # Raise the exception so the message is retried later by GCP
                 raise e
             except Exception as e:
