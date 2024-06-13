@@ -2,7 +2,6 @@ import base64
 import uuid
 import logging
 import aioredis
-from app import settings
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 from gundi_core import schemas
@@ -10,6 +9,7 @@ from gundi_client_v2 import GundiClient
 from smartconnect import AsyncSmartClient
 from gcloud.aio.storage import Storage
 from smartconnect.models import SMARTRequest, SMARTCompositeRequest
+from app.core import settings
 from app.core.utils import find_config_for_action, RateLimiterSemaphore
 
 _portal = GundiClient()

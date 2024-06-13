@@ -3,7 +3,7 @@ import asyncio
 import base64
 import json
 from typing import Union
-
+import random
 import aiohttp
 import logging
 import httpx
@@ -19,7 +19,6 @@ from redis import exceptions as redis_exceptions
 from gcloud.aio import pubsub
 from uuid import UUID
 from gundi_core import schemas
-from app import settings
 from gundi_client import PortalApi
 from gundi_client_v2 import GundiClient
 from . import settings, errors
@@ -539,3 +538,9 @@ class RateLimiterSemaphore:
 
     def __repr__(self):
         return self.__str__()
+
+
+def get_rate_limit_retry_jitter():
+    random_multiplier = random.randint(0, settings.MAX_REQUESTS_JITTER_MUL)
+    random_jitter = settings.MAX_REQUESTS_TIME_WINDOW_SEC * random_multiplier
+    return random_jitter
