@@ -111,7 +111,7 @@ async def dispatch_transformed_observation_v2(
                         payload=gundi_schemas_v2.DispatchedObservation(
                             gundi_id=gundi_id,
                             related_to=related_to,
-                            external_id=None,  # ID returned by the destination system
+                            external_id=gundi_id,  # ID in the destination system
                             data_provider_id=data_provider_id,
                             destination_id=destination_id,
                             delivered_at=datetime.now(timezone.utc),  # UTC
