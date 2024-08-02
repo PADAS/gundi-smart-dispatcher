@@ -57,7 +57,6 @@ async def test_process_event_v2_successfully(
     # Check that the right event was published to the right pubsub topic
     assert mock_pubsub_client.PublisherClient.called
     assert mock_pubsub_client.PubsubMessage.called
-    assert mock_pubsub_client.PublisherClient.called
     # Message published either to dispatcher-events topic or dead-letter
     assert mock_pubsub_client.PublisherClient.return_value.publish.called
     if is_completion_expected:
@@ -69,6 +68,48 @@ async def test_process_event_v2_successfully(
         mock_services_pubsub_client.PublisherClient.return_value.topic_path.assert_any_call(
             settings.GCP_PROJECT_ID, settings.DEAD_LETTER_TOPIC
         )
+
+
+@pytest.mark.asyncio
+async def test_process_event_update_v2_successfully(
+    mocker,
+    mock_cache,
+    mock_gundi_client_v2_class,
+    mock_smartclient_class_for_updates,
+    mock_pubsub_client_updates,
+    pubsub_cloud_event_headers,
+    event_update_v2_cloud_event_payload,
+    observation_updated_pubsub_message,
+):
+    # Mock external dependencies
+    mocker.patch("app.core.utils._cache_db", mock_cache)
+    mocker.patch("app.services.dispatchers._redis_client", mock_cache)
+    mocker.patch("app.core.utils.GundiClient", mock_gundi_client_v2_class)
+    mocker.patch(
+        "app.services.dispatchers.AsyncSmartClient", mock_smartclient_class_for_updates
+    )
+    mocker.patch("app.core.utils.pubsub", mock_pubsub_client_updates)
+    mocker.patch("app.services.process_messages.pubsub", mock_pubsub_client_updates)
+    response = api_client.post(
+        "/",
+        headers=pubsub_cloud_event_headers,
+        json=event_update_v2_cloud_event_payload,
+    )
+    assert response.status_code == 200
+    # Check that the report was sent o SMART
+    assert mock_smartclient_class_for_updates.called
+    assert mock_smartclient_class_for_updates.return_value.post_smart_request
+    # Check that the trace was written to redis db
+    assert mock_cache.setex.called
+    # Check that the right event was published to the right pubsub topic
+    assert mock_pubsub_client_updates.PublisherClient.called
+    assert mock_pubsub_client_updates.PubsubMessage.called
+    # Message published either to dispatcher-events topic or dead-letter
+    assert mock_pubsub_client_updates.PublisherClient.return_value.publish.called
+    mock_pubsub_client_updates.PublisherClient.return_value.publish.assert_any_call(
+        f"projects/{settings.GCP_PROJECT_ID}/topics/{settings.DISPATCHER_EVENTS_TOPIC}",
+        [observation_updated_pubsub_message],
+    )
 
 
 @pytest.mark.asyncio

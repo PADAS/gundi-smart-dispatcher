@@ -52,6 +52,13 @@ def observation_delivery_failure_pubsub_message():
 
 
 @pytest.fixture
+def observation_updated_pubsub_message():
+    return pubsub.PubsubMessage(
+        b'{"event_id": "c05cf942-f543-4798-bd91-0e38a63d655e", "timestamp": "2023-07-12 20:34:07.210731+00:00", "schema_version": "v1", "payload": {"gundi_id": "23ca4b15-18b6-4cf4-9da6-36dd69c6f638", "related_to": "None", "external_id": "7f42ab47-fa7a-4a7e-acc6-cadcaa114646", "data_provider_id": "ddd0946d-15b0-4308-b93d-e0470b6d33b6", "destination_id": "338225f3-91f9-4fe1-b013-353a229ce504", "delivered_at": "2023-07-12 20:34:07.210542+00:00"}, "event_type": "ObservationUpdated"}'
+    )
+
+
+@pytest.fixture
 def mock_pubsub_client(
     mocker, observation_delivered_pubsub_message, gcp_pubsub_publish_response
 ):
@@ -63,6 +70,21 @@ def mock_pubsub_client(
     )
     mock_client.PublisherClient.return_value = mock_publisher
     mock_client.PubsubMessage.return_value = observation_delivered_pubsub_message
+    return mock_client
+
+
+@pytest.fixture
+def mock_pubsub_client_updates(
+    mocker, observation_updated_pubsub_message, gcp_pubsub_publish_response
+):
+    mock_client = mocker.MagicMock()
+    mock_publisher = mocker.MagicMock()
+    mock_publisher.publish.return_value = async_return(gcp_pubsub_publish_response)
+    mock_publisher.topic_path.return_value = (
+        f"projects/{settings.GCP_PROJECT_ID}/topics/{settings.DISPATCHER_EVENTS_TOPIC}"
+    )
+    mock_client.PublisherClient.return_value = mock_publisher
+    mock_client.PubsubMessage.return_value = observation_updated_pubsub_message
     return mock_client
 
 
@@ -89,6 +111,14 @@ def post_report_response():
 @pytest.fixture
 def smartclient_post_smart_request_response():
     return {}
+
+
+@pytest.fixture
+def smartclient_update_request_response():
+    return {
+        "message": "Created or updated 1 Independent Incidents (gundi_ev_546b927b-578c-4504-99ce-a42895284941) ",
+        "warnings": None,
+    }
 
 
 @pytest.fixture
@@ -189,6 +219,34 @@ def geoevent_v2_cloud_event_payload():
                 "tracing_context": "{}",
             },
             "data": "eyJldmVudF9pZCI6ICI5ODZkMzQwYi02ZThiLTQ3MTctOTMwZS1kZWUwOWYzY2Y0OGUiLCAidGltZXN0YW1wIjogIjIwMjQtMDgtMDIgMTA6NTU6NDcuOTAyMTcxKzAwOjAwIiwgInNjaGVtYV92ZXJzaW9uIjogInYxIiwgInBheWxvYWQiOiB7ImNhX3V1aWQiOiAiMTY5MzYxZDAtNjJiOC00MTFkLWE4ZTYtMDE5ODIzODA1MDE2IiwgInBhdHJvbF9yZXF1ZXN0cyI6IFtdLCAid2F5cG9pbnRfcmVxdWVzdHMiOiBbeyJ0eXBlIjogIkZlYXR1cmUiLCAiZ2VvbWV0cnkiOiB7ImNvb3JkaW5hdGVzIjogWzEzLjc4MzA2NywgMTMuNjg4NjM0XX0sICJwcm9wZXJ0aWVzIjogeyJkYXRlVGltZSI6ICIyMDI0LTA4LTAyIDExOjQ2OjEwIiwgInNtYXJ0RGF0YVR5cGUiOiAiaW5jaWRlbnQiLCAic21hcnRGZWF0dXJlVHlwZSI6ICJ3YXlwb2ludC9uZXciLCAic21hcnRBdHRyaWJ1dGVzIjogeyJvYnNlcnZhdGlvbkdyb3VwcyI6IFt7Im9ic2VydmF0aW9ucyI6IFt7Im9ic2VydmF0aW9uVXVpZCI6ICI1NDZiOTI3Yi01NzhjLTQ1MDQtOTljZS1hNDI4OTUyODQ5NDEiLCAiY2F0ZWdvcnkiOiAiYW5pbWFscyIsICJhdHRyaWJ1dGVzIjogeyJ0YXJnZXRzcGVjaWVzIjogInJlcHRpbGVzLnB5dGhvbnNwcCIsICJ3aWxkbGlmZW9ic2VydmF0aW9udHlwZSI6ICJkaXJlY3RvYnNlcnZhdGlvbiIsICJhZ2VvZnNpZ25hbmltYWwiOiAiZnJlc2giLCAibnVtYmVyb2ZhbmltYWwiOiAxfX1dfV0sICJpbmNpZGVudElkIjogImd1bmRpX2V2XzU0NmI5MjdiLTU3OGMtNDUwNC05OWNlLWE0Mjg5NTI4NDk0MSIsICJpbmNpZGVudFV1aWQiOiAiNTQ2YjkyN2ItNTc4Yy00NTA0LTk5Y2UtYTQyODk1Mjg0OTQxIiwgImNvbW1lbnQiOiAiUmVwb3J0OiBBbmltYWxzIDAyIChUZXN0IE1hcmlhbm8pXG5JbXBvcnRlZDogMjAyNC0wOC0wMlQxMTo1MzoxOC4yNzI5NDQrMDE6MDAifX19XSwgInRyYWNrX3BvaW50X3JlcXVlc3RzIjogW119LCAiZXZlbnRfdHlwZSI6ICJFdmVudFRyYW5zZm9ybWVkU01BUlQifQ==",  # pragma: allowlist secret
+            "messageId": "9155786613739819",
+            "message_id": "9155786613739819",
+            "publishTime": timestamp,
+            "publish_time": timestamp,
+        },
+        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+    }
+
+
+@pytest.fixture
+def event_update_v2_cloud_event_payload():
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return {
+        "message": {
+            "data": "eyJldmVudF9pZCI6ICJiOGRlZjIzNS0yYzdhLTQ1ZDAtODNhMi1kOWFkMTQ1ZDU1MDciLCAidGltZXN0YW1wIjogIjIwMjQtMDgtMDIgMTQ6MjI6MTMuMTg3MTQ0KzAwOjAwIiwgInNjaGVtYV92ZXJzaW9uIjogInYxIiwgInBheWxvYWQiOiB7ImNhX3V1aWQiOiAiMTY5MzYxZDAtNjJiOC00MTFkLWE4ZTYtMDE5ODIzODA1MDE2IiwgIndheXBvaW50X3JlcXVlc3RzIjogW3sidHlwZSI6ICJGZWF0dXJlIiwgImdlb21ldHJ5IjogeyJjb29yZGluYXRlcyI6IFsxMy4xMjM0NTYsIDEzLjEyMzQ1Nl19LCAicHJvcGVydGllcyI6IHsiZGF0ZVRpbWUiOiAiMjAyNC0wOC0wMiAxMTo0NjoxMCIsICJzbWFydERhdGFUeXBlIjogImluY2lkZW50IiwgInNtYXJ0RmVhdHVyZVR5cGUiOiAid2F5cG9pbnQiLCAic21hcnRBdHRyaWJ1dGVzIjogeyJpbmNpZGVudElkIjogImd1bmRpX2V2XzU0NmI5MjdiLTU3OGMtNDUwNC05OWNlLWE0Mjg5NTI4NDk0MSIsICJpbmNpZGVudFV1aWQiOiAiNTQ2YjkyN2ItNTc4Yy00NTA0LTk5Y2UtYTQyODk1Mjg0OTQxIiwgImNvbW1lbnQiOiAiUmVwb3J0OiBBbmltYWxzIDEwIEVkaXRlZCBkZXRhaWxzIFxuVXBkYXRlZDogMjAyNC0wOC0wMlQxNDoyMTozMS4zMDU4ODArMDA6MDAifX19LCB7InR5cGUiOiAiRmVhdHVyZSIsICJwcm9wZXJ0aWVzIjogeyJzbWFydERhdGFUeXBlIjogImluY2lkZW50IiwgInNtYXJ0RmVhdHVyZVR5cGUiOiAid2F5cG9pbnQvb2JzZXJ2YXRpb24iLCAic21hcnRBdHRyaWJ1dGVzIjogeyJvYnNlcnZhdGlvblV1aWQiOiAiNTQ2YjkyN2ItNTc4Yy00NTA0LTk5Y2UtYTQyODk1Mjg0OTQxIiwgImNhdGVnb3J5IjogImFuaW1hbHMiLCAiYXR0cmlidXRlcyI6IHsidGFyZ2V0c3BlY2llcyI6ICJyZXB0aWxlcy5weXRob25zcHAiLCAid2lsZGxpZmVvYnNlcnZhdGlvbnR5cGUiOiAiZGlyZWN0b2JzZXJ2YXRpb24iLCAiYWdlb2ZzaWduYW5pbWFsIjogImZyZXNoIiwgIm51bWJlcm9mYW5pbWFsIjogNX19fX1dfSwgImV2ZW50X3R5cGUiOiAiRXZlbnRVcGRhdGVUcmFuc2Zvcm1lZFNNQVJUIn0=",  # pragma: allowlist secret
+            "attributes": {
+                "gundi_version": "v2",
+                "provider_key": "gundi_trap_tagger_d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
+                "gundi_id": "546b927b-578c-4504-99ce-a42895284941",
+                "related_to": "None",
+                "stream_type": "evu",
+                "source_id": "29669b17-c888-4c6d-87b5-d8b9e14e342d",
+                "external_source_id": "default-source",
+                "destination_id": "b42c9205-5228-49e0-a75b-ebe5b6a9f78e",
+                "data_provider_id": "d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
+                "annotations": "{}",
+                "tracing_context": "{}",
+            },
             "messageId": "9155786613739819",
             "message_id": "9155786613739819",
             "publishTime": timestamp,
@@ -408,6 +466,20 @@ def mock_smartclient(
 
 
 @pytest.fixture
+def mock_smartclient_updates(
+    mocker,
+    smartclient_update_request_response,
+):
+    mock_client = mocker.MagicMock()
+    mock_client.post_smart_request.return_value = async_return(
+        smartclient_update_request_response
+    )
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    return mock_client
+
+
+@pytest.fixture
 def mock_smartclient_with_400_response(
     mocker,
 ):
@@ -425,6 +497,13 @@ def mock_smartclient_with_400_response(
 def mock_smartclient_class(mocker, mock_smartclient):
     mock_smartclient_class = mocker.MagicMock()
     mock_smartclient_class.return_value = mock_smartclient
+    return mock_smartclient_class
+
+
+@pytest.fixture
+def mock_smartclient_class_for_updates(mocker, mock_smartclient_updates):
+    mock_smartclient_class = mocker.MagicMock()
+    mock_smartclient_class.return_value = mock_smartclient_updates
     return mock_smartclient_class
 
 
