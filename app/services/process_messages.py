@@ -1,9 +1,8 @@
 import asyncio
-import base64
 import json
 import logging
 import aiohttp
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from gcloud.aio import pubsub
 from opentelemetry.trace import SpanKind
 from app.core import settings, utils
