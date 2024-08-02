@@ -2,7 +2,7 @@ import pytest
 from app.core import settings
 from smartconnect import SMARTClientException
 from fastapi.testclient import TestClient
-
+from unittest.mock import ANY
 from app.core.errors import TooManyRequests
 from app.main import app
 
@@ -11,7 +11,7 @@ api_client = TestClient(app)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "event_headers,expected",
+    "event_headers,is_completion_expected",
     [
         ("pubsub_cloud_event_headers", True),
         ("pubsub_cloud_event_headers_with_future_timestamp", True),
@@ -20,7 +20,7 @@ api_client = TestClient(app)
 )
 async def test_process_event_v2_successfully(
     request,
-    expected,
+    is_completion_expected,
     mocker,
     mock_cache,
     mock_gundi_client_v2_class,
@@ -37,6 +37,9 @@ async def test_process_event_v2_successfully(
     mocker.patch("app.core.utils.GundiClient", mock_gundi_client_v2_class)
     mocker.patch("app.services.dispatchers.AsyncSmartClient", mock_smartclient_class)
     mocker.patch("app.core.utils.pubsub", mock_pubsub_client)
+    mock_services_pubsub_client = mocker.patch(
+        "app.services.process_messages.pubsub", mock_pubsub_client
+    )
     response = api_client.post(
         "/",
         headers=event_headers,
@@ -44,19 +47,27 @@ async def test_process_event_v2_successfully(
     )
     assert response.status_code == 200
     # Check that the report was sent o SMART
-    assert mock_smartclient_class.called == expected
-    assert mock_smartclient_class.return_value.post_smart_request.called == expected
+    assert mock_smartclient_class.called == is_completion_expected
+    assert (
+        mock_smartclient_class.return_value.post_smart_request.called
+        == is_completion_expected
+    )
     # Check that the trace was written to redis db
-    assert mock_cache.setex.called == expected
+    assert mock_cache.setex.called == is_completion_expected
     # Check that the right event was published to the right pubsub topic
-    assert mock_pubsub_client.PublisherClient.called == expected
-    assert mock_pubsub_client.PubsubMessage.called == expected
-    assert mock_pubsub_client.PublisherClient.called == expected
-    assert mock_pubsub_client.PublisherClient.return_value.publish.called == expected
-    if mock_pubsub_client.PublisherClient.return_value.publish.called:
+    assert mock_pubsub_client.PublisherClient.called
+    assert mock_pubsub_client.PubsubMessage.called
+    assert mock_pubsub_client.PublisherClient.called
+    # Message published either to dispatcher-events topic or dead-letter
+    assert mock_pubsub_client.PublisherClient.return_value.publish.called
+    if is_completion_expected:
         mock_pubsub_client.PublisherClient.return_value.publish.assert_any_call(
             f"projects/{settings.GCP_PROJECT_ID}/topics/{settings.DISPATCHER_EVENTS_TOPIC}",
             [observation_delivered_pubsub_message],
+        )
+    else:
+        mock_services_pubsub_client.PublisherClient.return_value.topic_path.assert_any_call(
+            settings.GCP_PROJECT_ID, settings.DEAD_LETTER_TOPIC
         )
 
 
