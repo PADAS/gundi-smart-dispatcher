@@ -91,41 +91,72 @@ async def dispatch_transformed_observation_v2(
                 },
             )
             # Emit events for the portal and other interested services (EDA)
-            await publish_event(
-                event=system_events.ObservationDeliveryFailed(
-                    payload=gundi_schemas_v2.DispatchedObservation(
-                        gundi_id=gundi_id,
-                        related_to=related_to,
-                        external_id=None,  # ID returned by the destination system
-                        data_provider_id=data_provider_id,
-                        destination_id=destination_id,
-                        delivered_at=datetime.now(timezone.utc),  # UTC
-                    )
-                ),
-                topic_name=settings.DISPATCHER_EVENTS_TOPIC,
-            )
-            raise e
+            if stream_type == gundi_schemas_v2.StreamPrefixEnum.event_update.value:
+                await publish_event(
+                    event=system_events.ObservationUpdateFailed(
+                        payload=gundi_schemas_v2.UpdatedObservation(
+                            gundi_id=gundi_id,
+                            related_to=related_to,
+                            data_provider_id=data_provider_id,
+                            destination_id=destination_id,
+                            updated_at=datetime.now(timezone.utc),  # UTC
+                        )
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
+            else:
+                # Emit events for the portal and other interested services (EDA)
+                await publish_event(
+                    event=system_events.ObservationDeliveryFailed(
+                        payload=gundi_schemas_v2.DispatchedObservation(
+                            gundi_id=gundi_id,
+                            related_to=related_to,
+                            external_id=None,  # ID returned by the destination system
+                            data_provider_id=data_provider_id,
+                            destination_id=destination_id,
+                            delivered_at=datetime.now(timezone.utc),  # UTC
+                        )
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
+                raise e
         else:
-            # Cache data related to the dispatched observation
-            if isinstance(result, list):
-                result = result[0]
-            dispatched_observation = gundi_schemas_v2.DispatchedObservation(
-                gundi_id=gundi_id,
-                related_to=related_to,
-                external_id=result.get("id")
-                or gundi_id,  # ID in the destination system
-                data_provider_id=data_provider_id,
-                destination_id=destination_id,
-                delivered_at=datetime.now(timezone.utc),  # UTC
-            )
-            await cache_dispatched_observation(observation=dispatched_observation)
             # Emit events for the portal and other interested services (EDA)
-            await publish_event(
-                event=system_events.ObservationDelivered(
-                    payload=dispatched_observation
-                ),
-                topic_name=settings.DISPATCHER_EVENTS_TOPIC,
-            )
+            if stream_type == gundi_schemas_v2.StreamPrefixEnum.event_update.value:
+                await publish_event(
+                    event=system_events.ObservationUpdated(
+                        payload=gundi_schemas_v2.UpdatedObservation(
+                            gundi_id=gundi_id,
+                            related_to=related_to,
+                            data_provider_id=data_provider_id,
+                            destination_id=destination_id,
+                            updated_at=datetime.now(timezone.utc),  # UTC
+                        )
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
+
+            else:
+                # Cache data related to the dispatched observation
+                if isinstance(result, list):
+                    result = result[0]
+                dispatched_observation = gundi_schemas_v2.DispatchedObservation(
+                    gundi_id=gundi_id,
+                    related_to=related_to,
+                    external_id=result.get("id")
+                    or gundi_id,  # ID in the destination system
+                    data_provider_id=data_provider_id,
+                    destination_id=destination_id,
+                    delivered_at=datetime.now(timezone.utc),  # UTC
+                )
+                await cache_dispatched_observation(observation=dispatched_observation)
+                # Emit events for the portal and other interested services (EDA)
+                await publish_event(
+                    event=system_events.ObservationDelivered(
+                        payload=dispatched_observation
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
 
 
 async def send_observation_to_dead_letter_topic(transformed_observation, attributes):
