@@ -1,9 +1,8 @@
 import asyncio
-import base64
 import json
 import logging
 import aiohttp
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from gcloud.aio import pubsub
 from opentelemetry.trace import SpanKind
 from app.core import settings, utils
@@ -16,7 +15,6 @@ from app.core.utils import (
     get_outbound_config_detail,
     get_inbound_integration_detail,
 )
-from gundi_core.schemas import v1 as gundi_schemas_v1
 from gundi_core.schemas import v2 as gundi_schemas_v2
 from gundi_core import events as system_events
 from app.core.errors import DispatcherException, ReferenceDataError, TooManyRequests
@@ -93,40 +91,72 @@ async def dispatch_transformed_observation_v2(
                 },
             )
             # Emit events for the portal and other interested services (EDA)
-            await publish_event(
-                event=system_events.ObservationDeliveryFailed(
-                    payload=gundi_schemas_v2.DispatchedObservation(
-                        gundi_id=gundi_id,
-                        related_to=related_to,
-                        external_id=None,  # ID returned by the destination system
-                        data_provider_id=data_provider_id,
-                        destination_id=destination_id,
-                        delivered_at=datetime.now(timezone.utc),  # UTC
-                    )
-                ),
-                topic_name=settings.DISPATCHER_EVENTS_TOPIC,
-            )
-            raise e
+            if stream_type == gundi_schemas_v2.StreamPrefixEnum.event_update.value:
+                await publish_event(
+                    event=system_events.ObservationUpdateFailed(
+                        payload=gundi_schemas_v2.UpdatedObservation(
+                            gundi_id=gundi_id,
+                            related_to=related_to,
+                            data_provider_id=data_provider_id,
+                            destination_id=destination_id,
+                            updated_at=datetime.now(timezone.utc),  # UTC
+                        )
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
+            else:
+                # Emit events for the portal and other interested services (EDA)
+                await publish_event(
+                    event=system_events.ObservationDeliveryFailed(
+                        payload=gundi_schemas_v2.DispatchedObservation(
+                            gundi_id=gundi_id,
+                            related_to=related_to,
+                            external_id=gundi_id,  # ID in the destination system
+                            data_provider_id=data_provider_id,
+                            destination_id=destination_id,
+                            delivered_at=datetime.now(timezone.utc),  # UTC
+                        )
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
+                raise e
         else:
-            # Cache data related to the dispatched observation
-            if isinstance(result, list):
-                result = result[0]
-            dispatched_observation = gundi_schemas_v2.DispatchedObservation(
-                gundi_id=gundi_id,
-                related_to=related_to,
-                external_id=result.get("id"),  # ID returned by the destination system
-                data_provider_id=data_provider_id,
-                destination_id=destination_id,
-                delivered_at=datetime.now(timezone.utc),  # UTC
-            )
-            await cache_dispatched_observation(observation=dispatched_observation)
             # Emit events for the portal and other interested services (EDA)
-            await publish_event(
-                event=system_events.ObservationDelivered(
-                    payload=dispatched_observation
-                ),
-                topic_name=settings.DISPATCHER_EVENTS_TOPIC,
-            )
+            if stream_type == gundi_schemas_v2.StreamPrefixEnum.event_update.value:
+                await publish_event(
+                    event=system_events.ObservationUpdated(
+                        payload=gundi_schemas_v2.UpdatedObservation(
+                            gundi_id=gundi_id,
+                            related_to=related_to,
+                            data_provider_id=data_provider_id,
+                            destination_id=destination_id,
+                            updated_at=datetime.now(timezone.utc),  # UTC
+                        )
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
+
+            else:
+                # Cache data related to the dispatched observation
+                if isinstance(result, list):
+                    result = result[0]
+                dispatched_observation = gundi_schemas_v2.DispatchedObservation(
+                    gundi_id=gundi_id,
+                    related_to=related_to,
+                    external_id=result.get("id")
+                    or gundi_id,  # ID in the destination system
+                    data_provider_id=data_provider_id,
+                    destination_id=destination_id,
+                    delivered_at=datetime.now(timezone.utc),  # UTC
+                )
+                await cache_dispatched_observation(observation=dispatched_observation)
+                # Emit events for the portal and other interested services (EDA)
+                await publish_event(
+                    event=system_events.ObservationDelivered(
+                        payload=dispatched_observation
+                    ),
+                    topic_name=settings.DISPATCHER_EVENTS_TOPIC,
+                )
 
 
 async def send_observation_to_dead_letter_topic(transformed_observation, attributes):
@@ -170,13 +200,14 @@ async def send_observation_to_dead_letter_topic(transformed_observation, attribu
         )
 
 
-async def process_transformed_observation_v2(transformed_observation, attributes):
+async def process_transformer_event_v2(raw_event, attributes):
     with tracing.tracer.start_as_current_span(
-        "smart_dispatcher.process_transformed_observation", kind=SpanKind.CLIENT
+        "smart_dispatcher.process_transformer_event_v2", kind=SpanKind.CLIENT
     ) as current_span:
         current_span.add_event(
             name="smart_dispatcher.transformed_observation_received_at_dispatcher"
         )
+        transformer_event = system_events.EventTransformedSMART.parse_obj(raw_event)
         stream_type = attributes.get("stream_type")
         if stream_type not in dispatchers.dispatcher_cls_by_type.keys():
             error_msg = (
@@ -192,18 +223,15 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                 f"Exception occurred dispatching observation: {error_msg}"
             )
 
-        current_span.set_attribute("transformed_message", str(transformed_observation))
+        current_span.set_attribute("transformed_message", str(raw_event))
         current_span.set_attribute("environment", settings.TRACE_ENVIRONMENT)
         current_span.set_attribute("service", "smart-dispatcher")
         source_id = attributes.get("external_source_id")
         data_provider_id = attributes.get("data_provider_id")
-        provider_key = transformed_observation.pop(
-            "provider_key", attributes.get("provider_key")
-        )
+        provider_key = attributes.get("provider_key")
         destination_id = attributes.get("destination_id")
         gundi_id = attributes.get("gundi_id")
         related_to = attributes.get("related_to")
-        logger.debug(f"transformed_observation: {transformed_observation}")
         logger.info(
             f"Received transformed observation {gundi_id}",
             extra={
@@ -231,7 +259,7 @@ async def process_transformed_observation_v2(transformed_observation, attributes
                     },
                 )
                 await dispatch_transformed_observation_v2(
-                    observation=transformed_observation,
+                    observation=transformer_event.payload,
                     stream_type=stream_type,
                     data_provider_id=data_provider_id,
                     provider_key=provider_key,
@@ -562,9 +590,7 @@ async def process_request(request):
                 transformed_observation, attributes
             )
         elif version == "v2":
-            await process_transformed_observation_v2(
-                transformed_observation, attributes
-            )
+            await process_transformer_event_v2(transformed_observation, attributes)
         else:
             logger.warning(
                 f"Message discarded. Version '{version}' is not supported by this dispatcher."

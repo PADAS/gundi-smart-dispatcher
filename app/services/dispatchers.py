@@ -33,7 +33,7 @@ class DispatcherV2(ABC):
         self.integration = integration
 
     @abstractmethod
-    async def send(self, message: dict, **kwargs):
+    async def send(self, data, **kwargs):
         ...
 
 
@@ -92,10 +92,9 @@ class SmartConnectEventDispatcher(SmartConnectDispatcherV2):
             if item.properties.smartAttributes.observationUuid in ("None", None):
                 item.properties.smartAttributes.observationUuid = str(uuid.uuid4())
 
-    async def send(self, message: dict, **kwargs):
-        composite_msg = SMARTCompositeRequest.parse_obj(message)
+    async def send(self, request: SMARTCompositeRequest, **kwargs):
         # Events are called Waypoints in SMART
-        for waypoint_request in composite_msg.waypoint_requests:
+        for waypoint_request in request.waypoint_requests:
             self.clean_smart_request(waypoint_request)
             # Todo: Ask James what this is for.
             if hasattr(
@@ -117,8 +116,28 @@ class SmartConnectEventDispatcher(SmartConnectDispatcherV2):
                 redis_client=_redis_client, url=self.integration.base_url
             ):
                 return await self.smart_client.post_smart_request(
-                    json=payload, ca_uuid=composite_msg.ca_uuid
+                    json=payload, ca_uuid=request.ca_uuid
                 )
+
+
+class SmartConnectEventUpdateDispatcher(SmartConnectEventDispatcher):
+    async def send(self, request: SMARTCompositeRequest, **kwargs):
+        # Events are called Waypoints in SMART
+        result = []
+        for waypoint_request in request.waypoint_requests:
+            payload = waypoint_request.json(exclude_none=True)
+            logger.debug(
+                f"SmartConnectEventDispatcher > Waypoint payload: {payload}",
+                extra={"payload": payload},
+            )
+            async with RateLimiterSemaphore(
+                redis_client=_redis_client, url=self.integration.base_url
+            ):
+                response = await self.smart_client.post_smart_request(
+                    json=payload, ca_uuid=request.ca_uuid
+                )
+                result.append(response)
+        return result
 
 
 ########################################################################################
@@ -201,5 +220,6 @@ dispatcher_cls_by_type = {
     schemas.v1.StreamPrefixEnum.earthranger_patrol: SmartConnectDispatcher,
     # Gundi v2
     schemas.v2.StreamPrefixEnum.event: SmartConnectEventDispatcher,
+    schemas.v2.StreamPrefixEnum.event_update: SmartConnectEventUpdateDispatcher,
     # ToDo: Support Patrols and Observations
 }
