@@ -160,7 +160,7 @@ async def test_system_event_is_published_on_smartclient_error(
 
 
 @pytest.mark.asyncio
-async def test_throttling_on_rate_limit_exceeded(
+async def test_throttling_on_event_creation(
     mocker,
     mock_cache_with_rate_limit_exceeded,
     mock_smartclient_class,
@@ -186,6 +186,49 @@ async def test_throttling_on_rate_limit_exceeded(
             "/",
             headers=pubsub_cloud_event_headers,
             json=geoevent_v2_cloud_event_payload,
+        )
+    # Check that the call to send the report to SMART was NOT made
+    assert not mock_smartclient_class.return_value.post_smart_request.called
+    # Check that an event was published to the right pubsub topic to inform other services about the error
+    assert mock_pubsub_client_with_observation_delivery_failure.PublisherClient.called
+    assert mock_pubsub_client_with_observation_delivery_failure.PubsubMessage.called
+    assert mock_pubsub_client_with_observation_delivery_failure.PublisherClient.called
+    assert (
+        mock_pubsub_client_with_observation_delivery_failure.PublisherClient.return_value.publish.called
+    )
+    mock_pubsub_client_with_observation_delivery_failure.PublisherClient.return_value.publish.assert_any_call(
+        f"projects/{settings.GCP_PROJECT_ID}/topics/{settings.DISPATCHER_EVENTS_TOPIC}",
+        [observation_delivery_failure_pubsub_message],
+    )
+
+
+@pytest.mark.asyncio
+async def test_throttling_on_event_updates(
+    mocker,
+    mock_cache_with_rate_limit_exceeded,
+    mock_smartclient_class,
+    mock_pubsub_client_with_observation_delivery_failure,
+    mock_gundi_client_v2_class,
+    pubsub_cloud_event_headers,
+    event_update_v2_cloud_event_payload,
+    observation_delivery_failure_pubsub_message,
+):
+    # Mock external dependencies
+    mocker.patch("app.core.utils._cache_db", mock_cache_with_rate_limit_exceeded)
+    mocker.patch(
+        "app.services.dispatchers._redis_client", mock_cache_with_rate_limit_exceeded
+    )
+    mocker.patch("app.core.utils.GundiClient", mock_gundi_client_v2_class)
+    mocker.patch("app.services.dispatchers.AsyncSmartClient", mock_smartclient_class)
+    mocker.patch(
+        "app.core.utils.pubsub", mock_pubsub_client_with_observation_delivery_failure
+    )
+    # Check that the dispatcher raises an exception so the message is retried later
+    with pytest.raises(TooManyRequests):
+        api_client.post(
+            "/",
+            headers=pubsub_cloud_event_headers,
+            json=event_update_v2_cloud_event_payload,
         )
     # Check that the call to send the report to SMART was NOT made
     assert not mock_smartclient_class.return_value.post_smart_request.called

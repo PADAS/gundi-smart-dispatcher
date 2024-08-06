@@ -119,7 +119,9 @@ async def dispatch_transformed_observation_v2(
                     ),
                     topic_name=settings.DISPATCHER_EVENTS_TOPIC,
                 )
-                raise e
+
+            # Raise so it can be retried by GCP
+            raise e
         else:
             # Emit events for the portal and other interested services (EDA)
             if stream_type == gundi_schemas_v2.StreamPrefixEnum.event_update.value:
