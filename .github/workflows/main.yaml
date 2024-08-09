@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - gundi-3296-ordered-event-updates
 
 jobs:
   vars:
