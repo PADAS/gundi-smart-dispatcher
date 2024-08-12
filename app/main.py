@@ -45,7 +45,7 @@ def health_check(
     "/",
     summary="Process a message from Pub/Sub",
 )
-async def process_cloud_event(
+async def process_pubsub_request(
     request: Request,
 ):
     body = await request.body()
