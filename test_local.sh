@@ -1,11 +1,6 @@
 curl localhost:8383 \
   -X POST \
   -H "Content-Type: application/json" \
-  -H "ce-id: 123451234512345" \
-  -H "ce-specversion: 1.0" \
-  -H "ce-time: 2024-08-02T16:08:15.789Z" \
-  -H "ce-type: google.cloud.pubsub.topic.v1.messagePublished" \
-  -H "ce-source: //pubsub.googleapis.com/projects/MY-PROJECT/topics/MY-TOPIC" \
   -d '{
       "message": {
         "data":"eyJldmVudF9pZCI6ICJiOGRlZjIzNS0yYzdhLTQ1ZDAtODNhMi1kOWFkMTQ1ZDU1MDciLCAidGltZXN0YW1wIjogIjIwMjQtMDgtMDIgMTQ6MjI6MTMuMTg3MTQ0KzAwOjAwIiwgInNjaGVtYV92ZXJzaW9uIjogInYxIiwgInBheWxvYWQiOiB7ImNhX3V1aWQiOiAiMTY5MzYxZDAtNjJiOC00MTFkLWE4ZTYtMDE5ODIzODA1MDE2IiwgIndheXBvaW50X3JlcXVlc3RzIjogW3sidHlwZSI6ICJGZWF0dXJlIiwgImdlb21ldHJ5IjogeyJjb29yZGluYXRlcyI6IFsxMy4xMjM0NTYsIDEzLjEyMzQ1Nl19LCAicHJvcGVydGllcyI6IHsiZGF0ZVRpbWUiOiAiMjAyNC0wOC0wMiAxMTo0NjoxMCIsICJzbWFydERhdGFUeXBlIjogImluY2lkZW50IiwgInNtYXJ0RmVhdHVyZVR5cGUiOiAid2F5cG9pbnQiLCAic21hcnRBdHRyaWJ1dGVzIjogeyJpbmNpZGVudElkIjogImd1bmRpX2V2XzU0NmI5MjdiLTU3OGMtNDUwNC05OWNlLWE0Mjg5NTI4NDk0MSIsICJpbmNpZGVudFV1aWQiOiAiNTQ2YjkyN2ItNTc4Yy00NTA0LTk5Y2UtYTQyODk1Mjg0OTQxIiwgImNvbW1lbnQiOiAiUmVwb3J0OiBBbmltYWxzIDEwIEVkaXRlZCBkZXRhaWxzIFxuVXBkYXRlZDogMjAyNC0wOC0wMlQxNDoyMTozMS4zMDU4ODArMDA6MDAifX19LCB7InR5cGUiOiAiRmVhdHVyZSIsICJwcm9wZXJ0aWVzIjogeyJzbWFydERhdGFUeXBlIjogImluY2lkZW50IiwgInNtYXJ0RmVhdHVyZVR5cGUiOiAid2F5cG9pbnQvb2JzZXJ2YXRpb24iLCAic21hcnRBdHRyaWJ1dGVzIjogeyJvYnNlcnZhdGlvblV1aWQiOiAiNTQ2YjkyN2ItNTc4Yy00NTA0LTk5Y2UtYTQyODk1Mjg0OTQxIiwgImNhdGVnb3J5IjogImFuaW1hbHMiLCAiYXR0cmlidXRlcyI6IHsidGFyZ2V0c3BlY2llcyI6ICJyZXB0aWxlcy5weXRob25zcHAiLCAid2lsZGxpZmVvYnNlcnZhdGlvbnR5cGUiOiAiZGlyZWN0b2JzZXJ2YXRpb24iLCAiYWdlb2ZzaWduYW5pbWFsIjogImZyZXNoIiwgIm51bWJlcm9mYW5pbWFsIjogNX19fX1dfSwgImV2ZW50X3R5cGUiOiAiRXZlbnRVcGRhdGVUcmFuc2Zvcm1lZFNNQVJUIn0=", # pragma: allowlist secret
@@ -21,7 +16,12 @@ curl localhost:8383 \
           "data_provider_id":"d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
           "annotations":"{}",
           "tracing_context":"{}"
-        }
+        },
+        "messageId": "9155786613739819",
+        "message_id": "9155786613739819",
+        "publishTime": "2024-08-02T16:08:15.789Z",
+        "publish_time": "2024-08-02T16:08:15.789Z",
+        "orderingKey": "546b927b-578c-4504-99ce-a42895284941"
       },
       "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
     }'  # pragma: allowlist secret
@@ -41,7 +41,12 @@ curl localhost:8383 \
 #          "data_provider_id":"d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
 #          "annotations":"{}",
 #          "tracing_context":"{}"
-#        }
+#        },
+#        "messageId": "9155786613739819",
+#        "message_id": "9155786613739819",
+#        "publishTime": "2024-08-02T16:08:15.789Z",
+#        "publish_time": "2024-08-02T16:08:15.789Z",
+#        "orderingKey": "546b927b-578c-4504-99ce-a42895284941"
 #      },
 #      "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #    }'
@@ -61,7 +66,12 @@ curl localhost:8383 \
 #          "data_provider_id":"d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
 #          "annotations":"{}",
 #          "tracing_context":"{}"
-#        }
+#        },
+#        "messageId": "9155786613739819",
+#        "message_id": "9155786613739819",
+#        "publishTime": "2024-08-02T16:08:15.789Z",
+#        "publish_time": "2024-08-02T16:08:15.789Z",
+#        "orderingKey": "546b927b-578c-4504-99ce-a42895284941"
 #      },
 #      "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #    }'
@@ -81,7 +91,11 @@ curl localhost:8383 \
 #          "data_provider_id":"d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
 #          "annotations":"{}",
 #          "tracing_context":"{}"
-#        }
+#        },
+#        "messageId": "9155786613739819",
+#        "message_id": "9155786613739819",
+#        "publishTime": "2024-08-02T16:08:15.789Z",
+#        "publish_time": "2024-08-02T16:08:15.789Z"
 #      },
 #      "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #    }'
@@ -101,7 +115,11 @@ curl localhost:8383 \
 #          "data_provider_id":"d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
 #          "annotations":"{}",
 #          "tracing_context":"{\"x-cloud-trace-context\": \"95f36c1f22b1cb599efc28243a631f7d/15139689239813763386;o=1\"}"
-#        }
+#        },
+#        "messageId": "9155786613739819",
+#        "message_id": "9155786613739819",
+#        "publishTime": "2024-08-02T16:08:15.789Z",
+#        "publish_time": "2024-08-02T16:08:15.789Z"
 #      },
 #      "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #    }'
@@ -121,7 +139,11 @@ curl localhost:8383 \
 #          "data_provider_id":"d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
 #          "annotations":"null",
 #          "tracing_context":"{}"
-#        }
+#        },
+#        "messageId": "9155786613739819",
+#        "message_id": "9155786613739819",
+#        "publishTime": "2024-08-02T16:08:15.789Z",
+#        "publish_time": "2024-08-02T16:08:15.789Z"
 #      },
 #      "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #    }'
@@ -135,7 +157,11 @@ curl localhost:8383 \
 #             "outbound_config_id":"1c19dc7e-73e2-4af3-93f5-a1cb322e5add",
 #             "integration_id":"36485b4f-88cd-49c4-a723-0ddff1f580c4",
 #             "tracing_context":"{}"
-#          }
+#        },
+#          "messageId": "9155786613739819",
+#          "message_id": "9155786613739819",
+#          "publishTime": "2024-08-02T16:08:15.789Z",
+#          "publish_time": "2024-08-02T16:08:15.789Z"
 #        },
 #        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #      }'
@@ -149,8 +175,12 @@ curl localhost:8383 \
 #          "outbound_config_id":"5f658487-67f7-43f1-8896-d78778e49c30",
 #          "integration_id":"a244fddd-3f64-4298-81ed-b6fccc60cef8",
 #          "tracing_context":"{}"
-#        }
-#      },
+#        },
+#          "messageId": "9155786613739819",
+#          "message_id": "9155786613739819",
+#          "publishTime": "2024-08-02T16:08:15.789Z",
+#          "publish_time": "2024-08-02T16:08:15.789Z"
+#        },
 #      "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #    }'
 # GeoEvent
@@ -163,7 +193,11 @@ curl localhost:8383 \
 #          "outbound_config_id":"9243a5e3-b16a-4dbd-ad32-197c58aeef59",
 #          "integration_id":"8311c4a5-ddab-4743-b8ab-d3d57a7c8212",
 #          "tracing_context":"{}"
-#        }
-#      },
+#        },
+#          "messageId": "9155786613739819",
+#          "message_id": "9155786613739819",
+#          "publishTime": "2024-08-02T16:08:15.789Z",
+#          "publish_time": "2024-08-02T16:08:15.789Z"
+#        },
 #      "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB"
 #    }'
