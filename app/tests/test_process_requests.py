@@ -2,7 +2,6 @@ import pytest
 from app.core import settings
 from smartconnect import SMARTClientException
 from fastapi.testclient import TestClient
-from unittest.mock import ANY
 from app.core.errors import TooManyRequests
 from app.main import app
 
@@ -11,11 +10,11 @@ api_client = TestClient(app)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "event_headers,is_completion_expected",
+    "pubsub_message, is_completion_expected",
     [
-        ("pubsub_cloud_event_headers", True),
-        ("pubsub_cloud_event_headers_with_future_timestamp", True),
-        ("pubsub_cloud_event_headers_with_old_timestamp", False),
+        ("event_v2_pubsub_message", True),
+        ("event_v2_pubsub_message_with_future_timestamp", True),
+        ("event_v2_pubsub_message_with_old_timestamp", False),
     ],
 )
 async def test_process_event_v2_successfully(
@@ -26,11 +25,11 @@ async def test_process_event_v2_successfully(
     mock_gundi_client_v2_class,
     mock_smartclient_class,
     mock_pubsub_client,
-    event_headers,
-    geoevent_v2_cloud_event_payload,
+    pubsub_message,
+    pubsub_request_headers,
     observation_delivered_pubsub_message,
 ):
-    event_headers = request.getfixturevalue(event_headers)
+    pubsub_message = request.getfixturevalue(pubsub_message)
     # Mock external dependencies
     mocker.patch("app.core.utils._cache_db", mock_cache)
     mocker.patch("app.services.dispatchers._redis_client", mock_cache)
@@ -42,8 +41,8 @@ async def test_process_event_v2_successfully(
     )
     response = api_client.post(
         "/",
-        headers=event_headers,
-        json=geoevent_v2_cloud_event_payload,
+        headers=pubsub_request_headers,
+        json=pubsub_message,
     )
     assert response.status_code == 200
     # Check that the report was sent o SMART
@@ -77,8 +76,8 @@ async def test_process_event_update_v2_successfully(
     mock_gundi_client_v2_class,
     mock_smartclient_class_for_updates,
     mock_pubsub_client_updates,
-    pubsub_cloud_event_headers,
-    event_update_v2_cloud_event_payload,
+    pubsub_request_headers,
+    event_update_v2_pubsub_message,
     observation_updated_pubsub_message,
 ):
     # Mock external dependencies
@@ -92,8 +91,8 @@ async def test_process_event_update_v2_successfully(
     mocker.patch("app.services.process_messages.pubsub", mock_pubsub_client_updates)
     response = api_client.post(
         "/",
-        headers=pubsub_cloud_event_headers,
-        json=event_update_v2_cloud_event_payload,
+        headers=pubsub_request_headers,
+        json=event_update_v2_pubsub_message,
     )
     assert response.status_code == 200
     # Check that the report was sent o SMART
@@ -119,8 +118,8 @@ async def test_system_event_is_published_on_smartclient_error(
     mock_smartclient_class_with_400_response,
     mock_pubsub_client_with_observation_delivery_failure,
     mock_gundi_client_v2_class,
-    pubsub_cloud_event_headers,
-    geoevent_v2_cloud_event_payload,
+    pubsub_request_headers,
+    event_v2_pubsub_message,
     observation_delivery_failure_pubsub_message,
 ):
     # Mock external dependencies
@@ -138,8 +137,8 @@ async def test_system_event_is_published_on_smartclient_error(
     with pytest.raises(SMARTClientException):
         api_client.post(
             "/",
-            headers=pubsub_cloud_event_headers,
-            json=geoevent_v2_cloud_event_payload,
+            headers=pubsub_request_headers,
+            json=event_v2_pubsub_message,
         )
     # Check that the call to send the report to SMART was made
     assert mock_smartclient_class_with_400_response.called
@@ -166,8 +165,8 @@ async def test_throttling_on_event_creation(
     mock_smartclient_class,
     mock_pubsub_client_with_observation_delivery_failure,
     mock_gundi_client_v2_class,
-    pubsub_cloud_event_headers,
-    geoevent_v2_cloud_event_payload,
+    pubsub_request_headers,
+    event_v2_pubsub_message,
     observation_delivery_failure_pubsub_message,
 ):
     # Mock external dependencies
@@ -184,8 +183,8 @@ async def test_throttling_on_event_creation(
     with pytest.raises(TooManyRequests):
         api_client.post(
             "/",
-            headers=pubsub_cloud_event_headers,
-            json=geoevent_v2_cloud_event_payload,
+            headers=pubsub_request_headers,
+            json=event_v2_pubsub_message,
         )
     # Check that the call to send the report to SMART was NOT made
     assert not mock_smartclient_class.return_value.post_smart_request.called
@@ -209,8 +208,8 @@ async def test_throttling_on_event_updates(
     mock_smartclient_class,
     mock_pubsub_client_with_observation_delivery_failure,
     mock_gundi_client_v2_class,
-    pubsub_cloud_event_headers,
-    event_update_v2_cloud_event_payload,
+    pubsub_request_headers,
+    event_update_v2_pubsub_message,
     observation_delivery_failure_pubsub_message,
 ):
     # Mock external dependencies
@@ -227,8 +226,8 @@ async def test_throttling_on_event_updates(
     with pytest.raises(TooManyRequests):
         api_client.post(
             "/",
-            headers=pubsub_cloud_event_headers,
-            json=event_update_v2_cloud_event_payload,
+            headers=pubsub_request_headers,
+            json=event_update_v2_pubsub_message,
         )
     # Check that the call to send the report to SMART was NOT made
     assert not mock_smartclient_class.return_value.post_smart_request.called
@@ -252,8 +251,8 @@ async def test_process_geoevent_v1_successfully(
     mock_gundi_client_v1,
     mock_smartclient_class,
     mock_pubsub_client,
-    pubsub_cloud_event_headers,
-    geoevent_v1_cloud_event_payload,
+    pubsub_request_headers,
+    geoevent_v1_pubsub_message,
     observation_delivered_pubsub_message,
 ):
     # Mock external dependencies
@@ -264,8 +263,8 @@ async def test_process_geoevent_v1_successfully(
     mocker.patch("app.core.utils.pubsub", mock_pubsub_client)
     response = api_client.post(
         "/",
-        headers=pubsub_cloud_event_headers,
-        json=geoevent_v1_cloud_event_payload,
+        headers=pubsub_request_headers,
+        json=geoevent_v1_pubsub_message,
     )
     assert response.status_code == 200
     # Check that the report was sent o SMART
@@ -282,8 +281,8 @@ async def test_process_er_event_v1_successfully(
     mock_gundi_client_v1,
     mock_smartclient_class,
     mock_pubsub_client,
-    pubsub_cloud_event_headers,
-    er_event_v1_cloud_event_payload,
+    pubsub_request_headers,
+    er_event_v1_pubsub_message,
     observation_delivered_pubsub_message,
 ):
     # Mock external dependencies
@@ -294,8 +293,8 @@ async def test_process_er_event_v1_successfully(
     mocker.patch("app.core.utils.pubsub", mock_pubsub_client)
     response = api_client.post(
         "/",
-        headers=pubsub_cloud_event_headers,
-        json=er_event_v1_cloud_event_payload,
+        headers=pubsub_request_headers,
+        json=er_event_v1_pubsub_message,
     )
     assert response.status_code == 200
     # Check that the report was sent o SMART
@@ -312,9 +311,9 @@ async def test_process_er_event_v1_with_attachment_successfully(
     mock_gundi_client_v1,
     mock_smartclient_class,
     mock_pubsub_client,
-    pubsub_cloud_event_headers,
+    pubsub_request_headers,
     mock_cloud_storage_client_class,
-    er_event_v1_with_attachment_cloud_event_payload,
+    er_event_v1_with_attachment_pubsub_message,
     observation_delivered_pubsub_message,
 ):
     # Mock external dependencies
@@ -326,8 +325,8 @@ async def test_process_er_event_v1_with_attachment_successfully(
     mocker.patch("app.core.utils.pubsub", mock_pubsub_client)
     response = api_client.post(
         "/",
-        headers=pubsub_cloud_event_headers,
-        json=er_event_v1_with_attachment_cloud_event_payload,
+        headers=pubsub_request_headers,
+        json=er_event_v1_with_attachment_pubsub_message,
     )
     assert response.status_code == 200
     # Check that the attachment was downloaded from cloud storage
@@ -344,8 +343,8 @@ async def test_process_er_patrol_v1_successfully(
     mock_gundi_client_v1,
     mock_smartclient_class,
     mock_pubsub_client,
-    pubsub_cloud_event_headers,
-    er_patrol_v1_cloud_event_payload,
+    pubsub_request_headers,
+    er_patrol_v1_pubsub_message,
     observation_delivered_pubsub_message,
 ):
     # Mock external dependencies
@@ -356,8 +355,8 @@ async def test_process_er_patrol_v1_successfully(
     mocker.patch("app.core.utils.pubsub", mock_pubsub_client)
     response = api_client.post(
         "/",
-        headers=pubsub_cloud_event_headers,
-        json=er_patrol_v1_cloud_event_payload,
+        headers=pubsub_request_headers,
+        json=er_patrol_v1_pubsub_message,
     )
     assert response.status_code == 200
     # Check that the report was sent o SMART

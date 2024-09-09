@@ -201,7 +201,7 @@ def mock_gundi_client_v2_class(mocker, mock_gundi_client_v2):
 
 
 @pytest.fixture
-def geoevent_v2_cloud_event_payload():
+def event_v2_pubsub_message():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return {
         "message": {
@@ -229,7 +229,69 @@ def geoevent_v2_cloud_event_payload():
 
 
 @pytest.fixture
-def event_update_v2_cloud_event_payload():
+def event_v2_pubsub_message_with_future_timestamp():
+    future_datetime = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+        hours=1
+    )
+    future_timestamp = future_datetime.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return {
+        "message": {
+            "attributes": {
+                "annotations": "{}",
+                "data_provider_id": "88ac5e9c-a3f0-47ff-9382-58d0abfa95f3",
+                "destination_id": "58c44611-e356-4e4d-82bb-26f50f1fc1e8",
+                "external_source_id": "default-source",
+                "gundi_id": "44eaf798-fa87-48d9-9baf-42dfdb4c6231",
+                "gundi_version": "v2",
+                "provider_key": "gundi_cellstop_88ac5e9c-a3f0-47ff-9382-58d0abfa95f3",
+                "related_to": "",
+                "source_id": "e702598d-42d0-4094-8d1e-856caca4926e",
+                "stream_type": "ev",
+                "tracing_context": "{}",
+            },
+            "data": "eyJldmVudF9pZCI6ICI5ODZkMzQwYi02ZThiLTQ3MTctOTMwZS1kZWUwOWYzY2Y0OGUiLCAidGltZXN0YW1wIjogIjIwMjQtMDgtMDIgMTA6NTU6NDcuOTAyMTcxKzAwOjAwIiwgInNjaGVtYV92ZXJzaW9uIjogInYxIiwgInBheWxvYWQiOiB7ImNhX3V1aWQiOiAiMTY5MzYxZDAtNjJiOC00MTFkLWE4ZTYtMDE5ODIzODA1MDE2IiwgInBhdHJvbF9yZXF1ZXN0cyI6IFtdLCAid2F5cG9pbnRfcmVxdWVzdHMiOiBbeyJ0eXBlIjogIkZlYXR1cmUiLCAiZ2VvbWV0cnkiOiB7ImNvb3JkaW5hdGVzIjogWzEzLjc4MzA2NywgMTMuNjg4NjM0XX0sICJwcm9wZXJ0aWVzIjogeyJkYXRlVGltZSI6ICIyMDI0LTA4LTAyIDExOjQ2OjEwIiwgInNtYXJ0RGF0YVR5cGUiOiAiaW5jaWRlbnQiLCAic21hcnRGZWF0dXJlVHlwZSI6ICJ3YXlwb2ludC9uZXciLCAic21hcnRBdHRyaWJ1dGVzIjogeyJvYnNlcnZhdGlvbkdyb3VwcyI6IFt7Im9ic2VydmF0aW9ucyI6IFt7Im9ic2VydmF0aW9uVXVpZCI6ICI1NDZiOTI3Yi01NzhjLTQ1MDQtOTljZS1hNDI4OTUyODQ5NDEiLCAiY2F0ZWdvcnkiOiAiYW5pbWFscyIsICJhdHRyaWJ1dGVzIjogeyJ0YXJnZXRzcGVjaWVzIjogInJlcHRpbGVzLnB5dGhvbnNwcCIsICJ3aWxkbGlmZW9ic2VydmF0aW9udHlwZSI6ICJkaXJlY3RvYnNlcnZhdGlvbiIsICJhZ2VvZnNpZ25hbmltYWwiOiAiZnJlc2giLCAibnVtYmVyb2ZhbmltYWwiOiAxfX1dfV0sICJpbmNpZGVudElkIjogImd1bmRpX2V2XzU0NmI5MjdiLTU3OGMtNDUwNC05OWNlLWE0Mjg5NTI4NDk0MSIsICJpbmNpZGVudFV1aWQiOiAiNTQ2YjkyN2ItNTc4Yy00NTA0LTk5Y2UtYTQyODk1Mjg0OTQxIiwgImNvbW1lbnQiOiAiUmVwb3J0OiBBbmltYWxzIDAyIChUZXN0IE1hcmlhbm8pXG5JbXBvcnRlZDogMjAyNC0wOC0wMlQxMTo1MzoxOC4yNzI5NDQrMDE6MDAifX19XSwgInRyYWNrX3BvaW50X3JlcXVlc3RzIjogW119LCAiZXZlbnRfdHlwZSI6ICJFdmVudFRyYW5zZm9ybWVkU01BUlQifQ==",  # pragma: allowlist secret
+            "messageId": "9155786613739819",
+            "message_id": "9155786613739819",
+            "publishTime": future_timestamp,
+            "publish_time": future_timestamp,
+        },
+        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+    }
+
+
+@pytest.fixture
+def event_v2_pubsub_message_with_old_timestamp():
+    old_datetime = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        hours=25
+    )
+    old_timestamp = old_datetime.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return {
+        "message": {
+            "attributes": {
+                "annotations": "{}",
+                "data_provider_id": "88ac5e9c-a3f0-47ff-9382-58d0abfa95f3",
+                "destination_id": "58c44611-e356-4e4d-82bb-26f50f1fc1e8",
+                "external_source_id": "default-source",
+                "gundi_id": "44eaf798-fa87-48d9-9baf-42dfdb4c6231",
+                "gundi_version": "v2",
+                "provider_key": "gundi_cellstop_88ac5e9c-a3f0-47ff-9382-58d0abfa95f3",
+                "related_to": "",
+                "source_id": "e702598d-42d0-4094-8d1e-856caca4926e",
+                "stream_type": "ev",
+                "tracing_context": "{}",
+            },
+            "data": "eyJldmVudF9pZCI6ICI5ODZkMzQwYi02ZThiLTQ3MTctOTMwZS1kZWUwOWYzY2Y0OGUiLCAidGltZXN0YW1wIjogIjIwMjQtMDgtMDIgMTA6NTU6NDcuOTAyMTcxKzAwOjAwIiwgInNjaGVtYV92ZXJzaW9uIjogInYxIiwgInBheWxvYWQiOiB7ImNhX3V1aWQiOiAiMTY5MzYxZDAtNjJiOC00MTFkLWE4ZTYtMDE5ODIzODA1MDE2IiwgInBhdHJvbF9yZXF1ZXN0cyI6IFtdLCAid2F5cG9pbnRfcmVxdWVzdHMiOiBbeyJ0eXBlIjogIkZlYXR1cmUiLCAiZ2VvbWV0cnkiOiB7ImNvb3JkaW5hdGVzIjogWzEzLjc4MzA2NywgMTMuNjg4NjM0XX0sICJwcm9wZXJ0aWVzIjogeyJkYXRlVGltZSI6ICIyMDI0LTA4LTAyIDExOjQ2OjEwIiwgInNtYXJ0RGF0YVR5cGUiOiAiaW5jaWRlbnQiLCAic21hcnRGZWF0dXJlVHlwZSI6ICJ3YXlwb2ludC9uZXciLCAic21hcnRBdHRyaWJ1dGVzIjogeyJvYnNlcnZhdGlvbkdyb3VwcyI6IFt7Im9ic2VydmF0aW9ucyI6IFt7Im9ic2VydmF0aW9uVXVpZCI6ICI1NDZiOTI3Yi01NzhjLTQ1MDQtOTljZS1hNDI4OTUyODQ5NDEiLCAiY2F0ZWdvcnkiOiAiYW5pbWFscyIsICJhdHRyaWJ1dGVzIjogeyJ0YXJnZXRzcGVjaWVzIjogInJlcHRpbGVzLnB5dGhvbnNwcCIsICJ3aWxkbGlmZW9ic2VydmF0aW9udHlwZSI6ICJkaXJlY3RvYnNlcnZhdGlvbiIsICJhZ2VvZnNpZ25hbmltYWwiOiAiZnJlc2giLCAibnVtYmVyb2ZhbmltYWwiOiAxfX1dfV0sICJpbmNpZGVudElkIjogImd1bmRpX2V2XzU0NmI5MjdiLTU3OGMtNDUwNC05OWNlLWE0Mjg5NTI4NDk0MSIsICJpbmNpZGVudFV1aWQiOiAiNTQ2YjkyN2ItNTc4Yy00NTA0LTk5Y2UtYTQyODk1Mjg0OTQxIiwgImNvbW1lbnQiOiAiUmVwb3J0OiBBbmltYWxzIDAyIChUZXN0IE1hcmlhbm8pXG5JbXBvcnRlZDogMjAyNC0wOC0wMlQxMTo1MzoxOC4yNzI5NDQrMDE6MDAifX19XSwgInRyYWNrX3BvaW50X3JlcXVlc3RzIjogW119LCAiZXZlbnRfdHlwZSI6ICJFdmVudFRyYW5zZm9ybWVkU01BUlQifQ==",  # pragma: allowlist secret
+            "messageId": "9155786613739819",
+            "message_id": "9155786613739819",
+            "publishTime": old_timestamp,
+            "publish_time": old_timestamp,
+        },
+        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+    }
+
+
+@pytest.fixture
+def event_update_v2_pubsub_message():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return {
         "message": {
@@ -251,96 +313,21 @@ def event_update_v2_cloud_event_payload():
             "message_id": "9155786613739819",
             "publishTime": timestamp,
             "publish_time": timestamp,
+            "orderingKey": "546b927b-578c-4504-99ce-a42895284941",
         },
         "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
     }
 
 
 @pytest.fixture
-def pubsub_cloud_event_headers():
-    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%S.%fZ"
-    )
+def pubsub_request_headers():
     return {
         "host": "smart-dispatcher-jabcutl7za-uc.a.run.app",
-        "content-type": "application/json",
-        "authorization": "Bearer fake-token",
-        "content-length": "2057",
-        "accept": "application/json",
-        "from": "noreply@google.com",
-        "user-agent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
-        "x-cloud-trace-context": "",
-        "traceparent": "",
-        "x-forwarded-for": "64.233.172.137",
-        "x-forwarded-proto": "https",
-        "forwarded": 'for="64.233.172.137";proto=https',
-        "accept-encoding": "gzip, deflate, br",
-        "ce-id": "10090163454824831",
-        "ce-source": "//pubsub.googleapis.com/projects/cdip-stage-78ca/topics/smart-dispatcher-topic-test",
-        "ce-specversion": "1.0",
-        "ce-type": "google.cloud.pubsub.topic.v1.messagePublished",
-        "ce-time": timestamp,
     }
 
 
 @pytest.fixture
-def pubsub_cloud_event_headers_with_future_timestamp():
-    future_datetime = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
-        hours=1
-    )
-    future_timestamp = future_datetime.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    return {
-        "host": "smart-dispatcher-jabcutl7za-uc.a.run.app",
-        "content-type": "application/json",
-        "authorization": "Bearer fake-token",
-        "content-length": "2057",
-        "accept": "application/json",
-        "from": "noreply@google.com",
-        "user-agent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
-        "x-cloud-trace-context": "",
-        "traceparent": "",
-        "x-forwarded-for": "64.233.172.137",
-        "x-forwarded-proto": "https",
-        "forwarded": 'for="64.233.172.137";proto=https',
-        "accept-encoding": "gzip, deflate, br",
-        "ce-id": "10090163454824831",
-        "ce-source": "//pubsub.googleapis.com/projects/cdip-stage-78ca/topics/smart-dispatcher-topic-test",
-        "ce-specversion": "1.0",
-        "ce-type": "google.cloud.pubsub.topic.v1.messagePublished",
-        "ce-time": future_timestamp,
-    }
-
-
-@pytest.fixture
-def pubsub_cloud_event_headers_with_old_timestamp():
-    old_datetime = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
-        hours=25
-    )
-    old_timestamp = old_datetime.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    return {
-        "host": "smart-dispatcher-jabcutl7za-uc.a.run.app",
-        "content-type": "application/json",
-        "authorization": "Bearer fake-token",
-        "content-length": "2057",
-        "accept": "application/json",
-        "from": "noreply@google.com",
-        "user-agent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
-        "x-cloud-trace-context": "",
-        "traceparent": "",
-        "x-forwarded-for": "64.233.172.137",
-        "x-forwarded-proto": "https",
-        "forwarded": 'for="64.233.172.137";proto=https',
-        "accept-encoding": "gzip, deflate, br",
-        "ce-id": "10090163454824831",
-        "ce-source": "//pubsub.googleapis.com/projects/cdip-stage-78ca/topics/smart-dispatcher-topic-test",
-        "ce-specversion": "1.0",
-        "ce-type": "google.cloud.pubsub.topic.v1.messagePublished",
-        "ce-time": old_timestamp,
-    }
-
-
-@pytest.fixture
-def er_patrol_v1_cloud_event_payload():
+def er_patrol_v1_pubsub_message():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return {
         "message": {
@@ -362,7 +349,7 @@ def er_patrol_v1_cloud_event_payload():
 
 
 @pytest.fixture
-def geoevent_v1_cloud_event_payload():
+def geoevent_v1_pubsub_message():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return {
         "message": {
@@ -384,7 +371,7 @@ def geoevent_v1_cloud_event_payload():
 
 
 @pytest.fixture
-def er_event_v1_cloud_event_payload():
+def er_event_v1_pubsub_message():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return {
         "message": {
@@ -406,7 +393,7 @@ def er_event_v1_cloud_event_payload():
 
 
 @pytest.fixture
-def er_event_v1_with_attachment_cloud_event_payload():
+def er_event_v1_with_attachment_pubsub_message():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return {
         "message": {
