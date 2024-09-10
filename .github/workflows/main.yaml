@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - gundi-3069
 
 env:
   TRACING_ENABLED: ${{ secrets.TRACING_ENABLED }}
