@@ -8,7 +8,11 @@ from gundi_core import schemas
 from gundi_client_v2 import GundiClient
 from smartconnect import AsyncSmartClient
 from gcloud.aio.storage import Storage
-from smartconnect.models import SMARTRequest, SMARTCompositeRequest
+from gundi_core.schemas.v2 import (
+    SMARTRequest,
+    SMARTCompositeRequest,
+    SMARTUpdateRequest,
+)
 from app.core import settings
 from app.core.utils import find_config_for_action, RateLimiterSemaphore
 
@@ -121,7 +125,7 @@ class SmartConnectEventDispatcher(SmartConnectDispatcherV2):
 
 
 class SmartConnectEventUpdateDispatcher(SmartConnectEventDispatcher):
-    async def send(self, request: SMARTCompositeRequest, **kwargs):
+    async def send(self, request: SMARTUpdateRequest, **kwargs):
         # Events are called Waypoints in SMART
         result = []
         for waypoint_request in request.waypoint_requests:
@@ -141,7 +145,7 @@ class SmartConnectEventUpdateDispatcher(SmartConnectEventDispatcher):
 
 
 class SmartConnectAttachmentDispatcher(SmartConnectEventDispatcher):
-    async def send(self, request: SMARTCompositeRequest, **kwargs):
+    async def send(self, request: SMARTUpdateRequest, **kwargs):
         # Events are called Waypoints in SMART
         result = []
         for waypoint_request in request.waypoint_requests:
