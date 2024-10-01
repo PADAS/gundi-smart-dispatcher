@@ -145,11 +145,6 @@ class SmartConnectAttachmentDispatcher(SmartConnectEventDispatcher):
         # Events are called Waypoints in SMART
         result = []
         for waypoint_request in request.waypoint_requests:
-            payload = waypoint_request.json(exclude_none=True)
-            logger.debug(
-                f"SmartConnectAttachmentDispatcher > Waypoint payload: {payload}",
-                extra={"payload": payload},
-            )
             attachments = waypoint_request.properties.smartAttributes.attachments
             if not attachments:
                 error_msg = f"Attachments are missing in the request {waypoint_request}. Skipped"
@@ -165,6 +160,12 @@ class SmartConnectAttachmentDispatcher(SmartConnectEventDispatcher):
                         )
                     downloaded_file_base64 = base64.b64encode(downloaded_file).decode()
                     file.data = downloaded_file_base64
+            # Build the final payload and send it
+            payload = waypoint_request.json(exclude_none=True)
+            logger.debug(
+                f"SmartConnectAttachmentDispatcher > Waypoint payload: {payload}",
+                extra={"payload": payload},
+            )
             async with RateLimiterSemaphore(
                 redis_client=_redis_client, url=self.integration.base_url
             ):
