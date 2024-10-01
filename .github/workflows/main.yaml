@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - 'gundi-2965-attachments-v2'
 
 env:
   TRACING_ENABLED: ${{ secrets.TRACING_ENABLED }}
