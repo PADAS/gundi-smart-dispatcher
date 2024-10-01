@@ -8,7 +8,7 @@ hiredis==2.3.2
 gundi-core==1.5.9
 gundi-client==0.2.2
 gundi-client-v2==2.3.3
-https://github.com/PADAS/smartconnect-client/releases/download/v1.5.3/smartconnect_client-1.5.3-py3-none-any.whl
+https://github.com/PADAS/smartconnect-client/releases/download/v1.7.0/smartconnect_client-1.7.0-py3-none-any.whl
 httpx==0.24.1
 gcloud-aio-pubsub==6.0.0
 gcloud-aio-storage==9.2.0
