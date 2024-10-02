@@ -224,7 +224,7 @@ def event_v2_pubsub_message():
             "publishTime": timestamp,
             "publish_time": timestamp,
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 
@@ -255,7 +255,7 @@ def event_v2_pubsub_message_with_future_timestamp():
             "publishTime": future_timestamp,
             "publish_time": future_timestamp,
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 
@@ -286,7 +286,7 @@ def event_v2_pubsub_message_with_old_timestamp():
             "publishTime": old_timestamp,
             "publish_time": old_timestamp,
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 
@@ -315,7 +315,36 @@ def event_update_v2_pubsub_message():
             "publish_time": timestamp,
             "orderingKey": "546b927b-578c-4504-99ce-a42895284941",
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
+    }
+
+
+@pytest.fixture
+def attachment_as_event_update_v2_pubsub_message():
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return {
+        "message": {
+            "data": "eyJldmVudF9pZCI6ICIyOWU0Y2NmYS05NGM3LTQxNGQtODBiZi1lYzlkYjVjMDQ5MmQiLCAidGltZXN0YW1wIjogIjIwMjQtMTAtMDEgMTU6MTU6MjguMjEyNTA3KzAwOjAwIiwgInNjaGVtYV92ZXJzaW9uIjogInYxIiwgInBheWxvYWQiOiB7ImNhX3V1aWQiOiAiMTY5MzYxZDAtNjJiOC00MTFkLWE4ZTYtMDE5ODIzODA1MDE2IiwgIndheXBvaW50X3JlcXVlc3RzIjogW3sidHlwZSI6ICJGZWF0dXJlIiwgInByb3BlcnRpZXMiOiB7InNtYXJ0RGF0YVR5cGUiOiAiaW5jaWRlbnQiLCAic21hcnRGZWF0dXJlVHlwZSI6ICJ3YXlwb2ludCIsICJzbWFydEF0dHJpYnV0ZXMiOiB7ImluY2lkZW50VXVpZCI6ICI5NzgwZjU3Zi1lMGJiLTQzOTEtYWM0Ni0xZTQzZGI4YTM3NjEiLCAiYXR0YWNobWVudHMiOiBbeyJmaWxlbmFtZSI6ICI2NDc3NGVmZS04N2YwLTRiZTAtODA0Zi1hMmYyNWJjZjQ2MmFfbGlvbl8yMDI0MTAwMTEyMTUuanBlZyIsICJkYXRhIjogImd1bmRpOnN0b3JhZ2U6YXR0YWNobWVudHMvNjQ3NzRlZmUtODdmMC00YmUwLTgwNGYtYTJmMjViY2Y0NjJhX2xpb25fMjAyNDEwMDExMjE1LmpwZWcifV19fX1dfSwgImV2ZW50X3R5cGUiOiAiRXZlbnRVcGRhdGVUcmFuc2Zvcm1lZFNNQVJUIn0=",  # pragma: allowlist secret
+            "attributes": {
+                "gundi_version": "v2",
+                "provider_key": "gundi_trap_tagger_d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
+                "gundi_id": "64774efe-87f0-4be0-804f-a2f25bcf462a",
+                "related_to": "546b927b-578c-4504-99ce-a42895284941",
+                "stream_type": "att",
+                "source_id": "29669b17-c888-4c6d-87b5-d8b9e14e342d",
+                "external_source_id": "default-source",
+                "destination_id": "b42c9205-5228-49e0-a75b-ebe5b6a9f78e",
+                "data_provider_id": "d88ac520-2bf6-4e6b-ab09-38ed1ec6947a",
+                "annotations": "{}",
+                "tracing_context": "{}",
+            },
+            "messageId": "9155786613739819",
+            "message_id": "9155786613739819",
+            "publishTime": timestamp,
+            "publish_time": timestamp,
+            "orderingKey": "546b927b-578c-4504-99ce-a42895284941",
+        },
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 
@@ -344,7 +373,7 @@ def er_patrol_v1_pubsub_message():
             "publishTime": timestamp,
             "publish_time": timestamp,
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 
@@ -366,7 +395,7 @@ def geoevent_v1_pubsub_message():
             "publishTime": timestamp,
             "publish_time": timestamp,
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 
@@ -388,7 +417,7 @@ def er_event_v1_pubsub_message():
             "publishTime": timestamp,
             "publish_time": timestamp,
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 
@@ -410,7 +439,7 @@ def er_event_v1_with_attachment_pubsub_message():
             "publishTime": timestamp,
             "publish_time": timestamp,
         },
-        "subscription": "projects/cdip-stage-78ca/subscriptions/eventarc-us-central1-smart-dispatcher-topic-test-trigger-1zb7crbq-sub-909",
+        "subscription": "projects/MY-PROJECT/subscriptions/MY-SUB",  # pragma: allowlist secret
     }
 
 

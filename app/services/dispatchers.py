@@ -8,7 +8,11 @@ from gundi_core import schemas
 from gundi_client_v2 import GundiClient
 from smartconnect import AsyncSmartClient
 from gcloud.aio.storage import Storage
-from smartconnect.models import SMARTRequest, SMARTCompositeRequest
+from gundi_core.schemas.v2 import (
+    SMARTRequest,
+    SMARTCompositeRequest,
+    SMARTUpdateRequest,
+)
 from app.core import settings
 from app.core.utils import find_config_for_action, RateLimiterSemaphore
 
@@ -121,13 +125,49 @@ class SmartConnectEventDispatcher(SmartConnectDispatcherV2):
 
 
 class SmartConnectEventUpdateDispatcher(SmartConnectEventDispatcher):
-    async def send(self, request: SMARTCompositeRequest, **kwargs):
+    async def send(self, request: SMARTUpdateRequest, **kwargs):
         # Events are called Waypoints in SMART
         result = []
         for waypoint_request in request.waypoint_requests:
             payload = waypoint_request.json(exclude_none=True)
             logger.debug(
                 f"SmartConnectEventDispatcher > Waypoint payload: {payload}",
+                extra={"payload": payload},
+            )
+            async with RateLimiterSemaphore(
+                redis_client=_redis_client, url=self.integration.base_url
+            ):
+                response = await self.smart_client.post_smart_request(
+                    json=payload, ca_uuid=request.ca_uuid
+                )
+                result.append(response)
+        return result
+
+
+class SmartConnectAttachmentDispatcher(SmartConnectEventDispatcher):
+    async def send(self, request: SMARTUpdateRequest, **kwargs):
+        # Events are called Waypoints in SMART
+        result = []
+        for waypoint_request in request.waypoint_requests:
+            attachments = waypoint_request.properties.smartAttributes.attachments
+            if not attachments:
+                error_msg = f"Attachments are missing in the request {waypoint_request}. Skipped"
+                logger.error(error_msg)
+                continue
+            # Download and the file and set .data with base64 encoded content
+            for file in attachments:
+                if file.data.startswith("gundi:storage"):
+                    stored_name = file.data.split(":")[-1]
+                    async with Storage() as gcp_storage:
+                        downloaded_file = await gcp_storage.download(
+                            bucket=settings.BUCKET_NAME, object_name=stored_name
+                        )
+                    downloaded_file_base64 = base64.b64encode(downloaded_file).decode()
+                    file.data = downloaded_file_base64
+            # Build the final payload and send it
+            payload = waypoint_request.json(exclude_none=True)
+            logger.debug(
+                f"SmartConnectAttachmentDispatcher > Waypoint payload: {payload}",
                 extra={"payload": payload},
             )
             async with RateLimiterSemaphore(
@@ -221,5 +261,6 @@ dispatcher_cls_by_type = {
     # Gundi v2
     schemas.v2.StreamPrefixEnum.event: SmartConnectEventDispatcher,
     schemas.v2.StreamPrefixEnum.event_update: SmartConnectEventUpdateDispatcher,
+    schemas.v2.StreamPrefixEnum.attachment: SmartConnectAttachmentDispatcher,
     # ToDo: Support Patrols and Observations
 }
