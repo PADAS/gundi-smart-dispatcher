@@ -730,6 +730,7 @@ def smart_integration_v2():
                 "broker": "gcp_pubsub",
             },
             "status": "healthy",
+            "status_details": "",
         }
     )
 
