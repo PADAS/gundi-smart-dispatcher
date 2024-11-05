@@ -97,9 +97,9 @@ grpcio-status==1.60.0
     # via google-api-core
 gundi-client==0.2.2
     # via -r requirements.in
-gundi-client-v2==2.3.3
+gundi-client-v2==2.3.8
     # via -r requirements.in
-gundi-core==1.5.9
+gundi-core==1.7.1
     # via
     #   -r requirements.in
     #   gundi-client-v2
