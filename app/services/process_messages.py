@@ -17,6 +17,7 @@ from app.core.utils import (
 )
 from gundi_core.schemas import v2 as gundi_schemas_v2
 from gundi_core import events as system_events
+
 from app.core.errors import DispatcherException, ReferenceDataError, TooManyRequests
 from app.core import tracing
 from . import dispatchers
@@ -161,10 +162,26 @@ async def dispatch_transformed_observation_v2(
                 )
 
 
+def get_dlq_topic_for_data_type(data_type: gundi_schemas_v2.StreamPrefixEnum) -> str:
+    if data_type == gundi_schemas_v2.StreamPrefixEnum.observation:
+        return settings.OBSERVATIONS_DEAD_LETTER_TOPIC
+    elif data_type == gundi_schemas_v2.StreamPrefixEnum.event:
+        return settings.EVENTS_DEAD_LETTER_TOPIC
+    elif data_type == gundi_schemas_v2.StreamPrefixEnum.event_update:
+        return settings.EVENTS_UPDATES_DEAD_LETTER_TOPIC
+    elif data_type == gundi_schemas_v2.StreamPrefixEnum.attachment:
+        return settings.ATTACHMENTS_DEAD_LETTER_TOPIC
+    elif data_type == gundi_schemas_v2.StreamPrefixEnum.text_message:
+        return settings.TEXT_MESSAGES_DEAD_LETTER_TOPIC
+    else:
+        return settings.LEGACY_DEAD_LETTER_TOPIC
+
+
 async def send_observation_to_dead_letter_topic(transformed_observation, attributes):
     with tracing.tracer.start_as_current_span(
         "send_message_to_dead_letter_topic", kind=SpanKind.CLIENT
     ) as current_span:
+
         print(f"Forwarding observation to dead letter topic: {transformed_observation}")
         # Publish to another PubSub topic
         connect_timeout, read_timeout = settings.DEFAULT_REQUESTS_TIMEOUT
@@ -176,7 +193,12 @@ async def send_observation_to_dead_letter_topic(transformed_observation, attribu
         ) as session:
             client = pubsub.PublisherClient(session=session)
             # Get the topic
-            topic_name = settings.DEAD_LETTER_TOPIC
+            if attributes.get("gundi_version", "v1") == "v2":
+                topic_name = get_dlq_topic_for_data_type(
+                    data_type=attributes.get("stream_type")
+                )
+            else:
+                topic_name = settings.LEGACY_DEAD_LETTER_TOPIC
             current_span.set_attribute("topic", topic_name)
             topic = client.topic_path(settings.GCP_PROJECT_ID, topic_name)
             # Prepare the payload
