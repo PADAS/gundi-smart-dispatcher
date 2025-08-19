@@ -64,7 +64,7 @@ DISPATCHED_OBSERVATIONS_CACHE_TTL = env.int(
 )  # 1 Hour
 
 # Retries and dead-letter settings
-LEGACY_DEAD_LETTER_TOPIC = env.str("DEAD_LETTER_TOPIC", "destinations-dead-letter-dev")
+LEGACY_DEAD_LETTER_TOPIC = env.str("DEAD_LETTER_TOPIC", "dispatchers-dead-letter-prod")
 OBSERVATIONS_DEAD_LETTER_TOPIC = env.str(
     "OBSERVATIONS_DEAD_LETTER_TOPIC", "observations-dead-letter"
 )
