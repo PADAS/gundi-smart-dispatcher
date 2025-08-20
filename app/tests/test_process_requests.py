@@ -65,7 +65,7 @@ async def test_process_event_v2_successfully(
         )
     else:
         mock_services_pubsub_client.PublisherClient.return_value.topic_path.assert_any_call(
-            settings.GCP_PROJECT_ID, settings.DEAD_LETTER_TOPIC
+            settings.GCP_PROJECT_ID, settings.EVENTS_DEAD_LETTER_TOPIC
         )
 
 
